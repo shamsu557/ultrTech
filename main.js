@@ -123,6 +123,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// Store courses data globally
+let coursesData = [];
+
 // Load courses from API
 async function loadCourses() {
   const coursesContainer = document.getElementById("coursesContainer");
@@ -132,17 +135,17 @@ async function loadCourses() {
     loading.style.display = "block";
 
     const response = await fetch("/api/courses");
-    const courses = await response.json();
+    coursesData = await response.json();
 
     loading.style.display = "none";
 
-    if (courses.length === 0) {
+    if (coursesData.length === 0) {
       coursesContainer.innerHTML =
         '<div class="col-12 text-center"><p class="text-muted">No courses available at the moment.</p></div>';
       return;
     }
 
-    coursesContainer.innerHTML = courses
+    coursesContainer.innerHTML = coursesData
       .map(
         (course) => `
           <div class="col-6 col-lg-4 mb-4 d-flex">
@@ -193,7 +196,60 @@ function formatSchedule(schedule) {
 
 // Show course details modal
 function showCourseDetails(courseId) {
-  alert(`Course details for course ID: ${courseId}. This feature will be implemented in the next phase.`);
+  const course = coursesData.find((c) => c.id === courseId);
+  if (!course) {
+    showMessage("Course not found.", "danger");
+    return;
+  }
+
+  // Create modal
+  const modal = document.createElement("div");
+  modal.className = "modal fade";
+  modal.id = "courseDetailsModal";
+  modal.setAttribute("tabindex", "-1");
+  modal.setAttribute("aria-labelledby", "courseDetailsModalLabel");
+  modal.setAttribute("aria-hidden", "true");
+  modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="courseDetailsModalLabel">${course.name}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h6 class="course-details-title">Learning Outcomes</h6>
+          <p class="course-description">${course.description || "Gain industry-relevant skills and knowledge."}</p>
+          <h6 class="course-details-title">Course Details</h6>
+          <ul class="course-details-list">
+            <li><strong>Course Code:</strong> ${course.abbreviation || "N/A"}</li>
+            <li><strong>Certification Type:</strong> ${course.certification_type || "N/A"}</li>
+            <li><strong>Duration:</strong> ${course.duration || "N/A"}</li>
+            <li><strong>Schedule:</strong> ${formatSchedule(course.schedule) || "N/A"}</li>
+            <li><strong>Price:</strong> ${formatCurrency(course.registration_fee) || "N/A"}</li>
+            <li><strong>Delivery Method:</strong> Physical Classes</li>
+            <li><strong>Location:</strong> Gwammaja Housing Estate, Opp. Orthopedic Hospital, Dala</li>
+            <li><strong>Start Date:</strong> ${course.start_date || "20 Sept 2025"}</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+          <a href="/student/apply?course=${course.id}" class="btn btn-primary">Apply Now</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Append modal to body
+  document.body.appendChild(modal);
+
+  // Initialize and show modal
+  const bsModal = new bootstrap.Modal(modal);
+  bsModal.show();
+
+  // Remove modal from DOM after it's hidden
+  modal.addEventListener("hidden.bs.modal", () => {
+    modal.remove();
+  });
 }
 
 // Payment integration helper

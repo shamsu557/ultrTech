@@ -51,7 +51,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
 }
 
-.btn-outline-primary, .btn-outline-light {
+.btn-outline-primary, .btn-outline-light, .btn-outline-secondary {
   border-color: var(--primary);
   color: var(--primary);
   font-weight: 500;
@@ -60,7 +60,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: all 0.3s ease;
 }
 
-.btn-outline-primary:hover, .btn-outline-light:hover {
+.btn-outline-primary:hover, .btn-outline-light:hover, .btn-outline-secondary:hover {
   background-color: var(--primary);
   color: var(--primary-foreground);
   transform: translateY(-2px);
@@ -333,6 +333,78 @@ h1, h2, h3, h4, h5, h6 {
   .course-card .d-flex {
     flex-wrap: nowrap;
     gap: 0.3rem;
+  }
+}
+
+/* Course Details Modal */
+#courseDetailsModal .modal-content {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+#courseDetailsModal .modal-header {
+  background-color: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem;
+}
+
+#courseDetailsModal .modal-title {
+  color: var(--primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+#courseDetailsModal .modal-body {
+  padding: 1.5rem;
+}
+
+#courseDetailsModal .course-description {
+  font-size: 1rem;
+  color: var(--muted-foreground);
+  margin-bottom: 1rem;
+}
+
+#courseDetailsModal .course-details-list {
+  list-style: none;
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--foreground);
+}
+
+#courseDetailsModal .course-details-list li {
+  margin-bottom: 0.5rem;
+}
+
+#courseDetailsModal .course-details-list strong {
+  color: var(--primary);
+}
+
+#courseDetailsModal .modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+}
+
+@media (max-width: 576px) {
+  #courseDetailsModal .modal-title {
+    font-size: 1rem;
+  }
+
+  #courseDetailsModal .modal-body {
+    padding: 1rem;
+  }
+
+  #courseDetailsModal .course-description {
+    font-size: 0.6rem;
+  }
+
+  #courseDetailsModal .course-details-list {
+    font-size: 0.5rem;
+  }
+
+  #courseDetailsModal .modal-footer .btn {
+    padding: 4px 8px;
+    font-size: 0.55rem;
   }
 }
 
