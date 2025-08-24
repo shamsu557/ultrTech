@@ -30,6 +30,7 @@ module.exports = db;
 // CREATE TABLE IF NOT EXISTS courses (
 //     id INT AUTO_INCREMENT PRIMARY KEY,
 //     name VARCHAR(100) NOT NULL,
+//     registration_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00;
 //     abbreviation VARCHAR(10) NOT NULL,
 //     duration VARCHAR(50) NOT NULL,
 //     schedule VARCHAR(50) NOT NULL, -- weekend, morning, evening
@@ -226,16 +227,16 @@ module.exports = db;
 //     FOREIGN KEY (student_id) REFERENCES students(id)
 // );
 // -- Insert initial courses
-// INSERT INTO courses (name, abbreviation, duration, schedule, certification_type, description) VALUES
-// ('Web Development Frontend', 'WDF', '6 months', 'weekend', 'Diploma', 'Learn HTML, CSS, JavaScript, and modern frontend frameworks'),
-// ('Web Development Backend', 'WDB', '6 months', 'weekend', 'Diploma', 'Learn server-side programming, databases, and APIs'),
-// ('AI Starter Kit', 'AI', '8 weeks', 'weekend', 'Certificate', 'Introduction to Artificial Intelligence and Machine Learning'),
-// ('AutoCAD', 'CAD', '16 weeks', 'morning,evening', 'Diploma', 'Computer-Aided Design software training'),
-// ('Solar Installation', 'SOL', '12 weeks', 'morning,evening', 'Diploma', 'Solar panel installation and maintenance'),
-// ('Computer Appreciation', 'CA', '8 weeks', 'morning,evening', 'Certificate', 'Basic computer applications and skills'),
-// ('Forex Trading', 'FX', '10 weeks', 'morning,evening', 'Diploma', 'Foreign exchange trading fundamentals'),
-// ('Cybersecurity', 'CYB', '16 weeks', 'morning,evening', 'Diploma', 'Information security and ethical hacking'),
-// ('Cryptocurrency', 'CRY', '8 weeks', 'morning,evening', 'Diploma', 'Digital currency and blockchain technology');
+// INSERT INTO courses (name, registration_fee, abbreviation, duration, schedule, certification_type, description) VALUES
+// ('Web Development Frontend', 250.00, 'WDF', '6 months', 'weekend', 'Diploma', 'Learn HTML, CSS, JavaScript, and modern frontend frameworks'),
+// ('Web Development Backend', 300.00, 'WDB', '6 months', 'weekend', 'Diploma', 'Learn server-side programming, databases, and APIs'),
+// ('Introduction to Artificial Intelligence', 400.00, 'IAI', '8 weeks', 'weekend', 'Certificate', 'Introduction to Artificial Intelligence and Machine Learning'),
+// ('AutoCAD', 350.00, 'CAD', '16 weeks', 'morning,evening', 'Diploma', 'Computer-Aided Design software training'),
+// ('Solar Installation', 200.00, 'SOL', '12 weeks', 'morning,evening', 'Diploma', 'Solar panel installation and maintenance'),
+// ('Computer Appreciation', 450.00, 'CA', '8 weeks', 'morning,evening', 'Certificate', 'Basic computer applications and skills'),
+// ('Forex Trading', 500.00, 'FX', '10 weeks', 'morning,evening', 'Diploma', 'Foreign exchange trading fundamentals'),
+// ('Cybersecurity', 275.00, 'CYB', '16 weeks', 'morning,evening', 'Diploma', 'Information security and ethical hacking'),
+// ('Cryptocurrency', 325.00, 'CRY', '8 weeks', 'morning,evening', 'Diploma', 'Digital currency and blockchain technology');
 
 // -- Insert default admin
 // INSERT INTO admins (username, password_hash, role, first_name, last_name) VALUES
