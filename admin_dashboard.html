@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - UltraTech Global Solution LTD</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/styles.css" rel="stylesheet">
+    <link href="/dashboard.css" rel="stylesheet">
+    <link href="/global.css" rel="stylesheet">
+    <style>
+        .admin-sidebar {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            min-height: 100vh;
+        }
+        .admin-sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 2px 0;
+            transition: all 0.3s ease;
+        }
+        .admin-sidebar .nav-link:hover,
+        .admin-sidebar .nav-link.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(5px);
+        }
+        .stats-card {
+            border-left: 4px solid;
+            transition: transform 0.2s ease;
+        }
+        .stats-card:hover {
+            transform: translateY(-2px);
+        }
+        .border-left-primary { border-left-color: #007bff !important; }
+        .border-left-success { border-left-color: #28a745 !important; }
+        .border-left-info { border-left-color: #17a2b8 !important; }
+        .border-left-warning { border-left-color: #ffc107 !important; }
+        .border-left-danger { border-left-color: #dc3545 !important; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="fas fa-shield-alt me-2"></i>UltraTech Admin
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                        <img src="/placeholder.svg?height=32&width=32" class="rounded-circle me-2" width="32" height="32" alt="Profile">
+                        <span id="adminName">Loading...</span>
+                        <span class="badge bg-primary ms-2" id="adminRole">Admin</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="showSection('profile')"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="showSection('settings')"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="showSection('logs')"><i class="fas fa-list me-2"></i>Activity Logs</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block admin-sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" onclick="showSection('overview')">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('students')">
+                                <i class="fas fa-user-graduate me-2"></i>Students
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('staff')">
+                                <i class="fas fa-users me-2"></i>Staff
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('courses')">
+                                <i class="fas fa-book me-2"></i>Courses
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('payments')">
+                                <i class="fas fa-credit-card me-2"></i>Payments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('assignments')">
+                                <i class="fas fa-tasks me-2"></i>Assignments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('exams')">
+                                <i class="fas fa-clipboard-list me-2"></i>Exams
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('reports')">
+                                <i class="fas fa-chart-bar me-2"></i>Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('certificates')">
+                                <i class="fas fa-certificate me-2"></i>Certificates
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('system')">
+                                <i class="fas fa-cogs me-2"></i>System
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Overview Section -->
+                <div id="overviewSection" class="content-section">
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2">Admin Dashboard</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="btn-group me-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-download me-1"></i>Export Report
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-sync me-1"></i>Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="row mb-4">
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card stats-card border-left-primary shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Students</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalStudents">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card stats-card border-left-success shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Staff</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeStaff">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card stats-card border-left-info shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Monthly Revenue</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="monthlyRevenue">₦0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-naira-sign fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card stats-card border-left-warning shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Approvals</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="pendingApprovals">0</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts and Recent Activities -->
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Revenue Overview</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="revenueChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary" onclick="showSection('students'); showApprovalModal()">
+                                            <i class="fas fa-user-check me-2"></i>Approve Students
+                                        </button>
+                                        <button class="btn btn-success" onclick="showSection('staff'); showStaffApprovalModal()">
+                                            <i class="fas fa-user-plus me-2"></i>Approve Staff
+                                        </button>
+                                        <button class="btn btn-info" onclick="showSection('courses'); showAddCourseModal()">
+                                            <i class="fas fa-plus me-2"></i>Add Course
+                                        </button>
+                                        <button class="btn btn-warning" onclick="showSection('reports')">
+                                            <i class="fas fa-file-alt me-2"></i>Generate Report
+                                        </button>
+                                        <button class="btn btn-secondary" onclick="showSection('certificates')">
+                                            <i class="fas fa-certificate me-2"></i>Issue Certificate
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">System Status</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>Database</span>
+                                        <span class="badge bg-success">Online</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>Payment Gateway</span>
+                                        <span class="badge bg-success">Active</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>Email Service</span>
+                                        <span class="badge bg-success">Running</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Backup Status</span>
+                                        <span class="badge bg-warning">Pending</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Students Section -->
+                <div id="studentsSection" class="content-section" style="display: none;">
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2">Student Management</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <div class="btn-group me-2">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="showApprovalModal()">
+                                    <i class="fas fa-user-check me-1"></i>Approve Students
+                                </button>
+                                <button type="button" class="btn btn-sm btn-success" onclick="exportStudents()">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="studentsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Course</th>
+                                            <th>Status</th>
+                                            <th>Registration Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="studentsTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4">
+                                                <div class="spinner-border text-primary" role="status"></div>
+                                                <p class="mt-2">Loading students...</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other sections would be similar... -->
+                <div id="staffSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Staff Management</h1>
+                    <p>Staff management content will be loaded here.</p>
+                </div>
+
+                <div id="coursesSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Course Management</h1>
+                    <p>Course management content will be loaded here.</p>
+                </div>
+
+                <div id="paymentsSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Payment Management</h1>
+                    <p>Payment management content will be loaded here.</p>
+                </div>
+
+                <div id="assignmentsSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Assignment Management</h1>
+                    <p>Assignment management content will be loaded here.</p>
+                </div>
+
+                <div id="examsSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Exam Management</h1>
+                    <p>Exam management content will be loaded here.</p>
+                </div>
+
+                <div id="reportsSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Reports & Analytics</h1>
+                    <p>Reports content will be loaded here.</p>
+                </div>
+
+                <div id="certificatesSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Certificate Management</h1>
+                    <p>Certificate management content will be loaded here.</p>
+                </div>
+
+                <div id="systemSection" class="content-section" style="display: none;">
+                    <h1 class="h2">System Settings</h1>
+                    <p>System settings content will be loaded here.</p>
+                </div>
+
+                <div id="profileSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Admin Profile</h1>
+                    <p>Profile management content will be loaded here.</p>
+                </div>
+
+                <div id="settingsSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Settings</h1>
+                    <p>Settings content will be loaded here.</p>
+                </div>
+
+                <div id="logsSection" class="content-section" style="display: none;">
+                    <h1 class="h2">Activity Logs</h1>
+                    <p>Activity logs content will be loaded here.</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Student Approval Modal -->
+    <div class="modal fade" id="approvalModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Student Approvals</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="pendingStudents">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">Loading pending approvals...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/admin-dashboard.js"></script>
+</body>
+</html>
