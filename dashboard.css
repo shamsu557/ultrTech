@@ -1,0 +1,358 @@
+/* Student Dashboard Styles */
+
+.dashboard-sidebar {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+}
+
+.student-avatar img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+}
+
+.dashboard-menu {
+  list-style: none;
+  padding: 0;
+}
+
+.menu-item {
+  display: block;
+  padding: 12px 16px;
+  color: var(--foreground);
+  text-decoration: none;
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.menu-item:hover {
+  background-color: var(--muted);
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.menu-item.active {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.menu-item i {
+  width: 20px;
+}
+
+.dashboard-section {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-card {
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.result-card {
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-5px);
+}
+
+.assignment-card {
+  border-left: 4px solid var(--primary);
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.assignment-card:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.assignment-card.pending {
+  border-left-color: var(--accent);
+}
+
+.assignment-card.submitted {
+  border-left-color: #17a2b8;
+}
+
+.assignment-card.graded {
+  border-left-color: #28a745;
+}
+
+.assignment-card.overdue {
+  border-left-color: #dc3545;
+}
+
+.payment-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.payment-card:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.payment-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.payment-status.completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.payment-status.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.payment-status.failed {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.exam-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.exam-card:hover {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.exam-card.active {
+  border-color: var(--primary);
+  background-color: var(--muted);
+}
+
+.exam-timer {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  display: inline-block;
+}
+
+.grade-badge {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.grade-badge.excellent {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.grade-badge.good {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.grade-badge.average {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.grade-badge.poor {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.3s ease;
+}
+
+.activity-item:hover {
+  background-color: var(--muted);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+  font-size: 1.2rem;
+}
+
+.activity-icon.assignment {
+  background-color: rgba(21, 128, 61, 0.1);
+  color: var(--primary);
+}
+
+.activity-icon.exam {
+  background-color: rgba(132, 204, 22, 0.1);
+  color: var(--accent);
+}
+
+.activity-icon.payment {
+  background-color: rgba(23, 162, 184, 0.1);
+  color: #17a2b8;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-time {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+}
+
+.overall-grade {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  padding: 2rem;
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+}
+
+.progress-ring {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+
+.progress-ring-circle {
+  stroke: var(--primary);
+  stroke-width: 8;
+  fill: transparent;
+  stroke-dasharray: 283;
+  stroke-dashoffset: 283;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.5s ease-in-out;
+}
+
+.file-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.file-upload-area:hover {
+  border-color: var(--primary);
+  background-color: var(--muted);
+}
+
+.file-upload-area.dragover {
+  border-color: var(--accent);
+  background-color: rgba(132, 204, 22, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    position: static;
+    margin-bottom: 2rem;
+  }
+
+  .student-info {
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+
+  .student-avatar {
+    margin-right: 1rem;
+    margin-bottom: 0;
+  }
+
+  .student-avatar img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .dashboard-menu {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .menu-item {
+    white-space: nowrap;
+    margin-right: 0.5rem;
+    margin-bottom: 0;
+  }
+}
+
+/* Loading States */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 1rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  width: 60%;
+}
+
+.skeleton-card {
+  height: 100px;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}

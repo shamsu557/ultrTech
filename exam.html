@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Exam - UltraTech Global Solution LTD</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/exam.css">
+    <link rel="stylesheet" href="/global.css">
+</head>
+<body class="exam-body">
+    <!-- Exam Header -->
+    <nav class="navbar navbar-expand-lg exam-navbar">
+        <div class="container-fluid">
+            <div class="navbar-brand">
+                <i class="fas fa-clipboard-check me-2"></i>
+                <span id="examTitle">Loading Exam...</span>
+            </div>
+            <div class="exam-timer-container">
+                <div class="exam-timer" id="examTimer">
+                    <i class="fas fa-clock me-2"></i>
+                    <span id="timeRemaining">00:00:00</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Exam Content -->
+    <div class="container-fluid exam-container">
+        <!-- Loading Screen -->
+        <div id="loadingScreen" class="text-center">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                <h4 class="mt-3">Loading Exam...</h4>
+                <p class="text-muted">Please wait while we prepare your exam</p>
+            </div>
+        </div>
+
+        <!-- Exam Instructions -->
+        <div id="instructionsScreen" class="exam-screen" style="display: none;">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card exam-instructions-card">
+                        <div class="card-header bg-primary text-white text-center">
+                            <h3><i class="fas fa-info-circle me-2"></i>Exam Instructions</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="exam-info mb-4">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-book me-2"></i>Exam Details:</h6>
+                                        <ul class="list-unstyled">
+                                            <li><strong>Title:</strong> <span id="instructionsExamTitle"></span></li>
+                                            <li><strong>Duration:</strong> <span id="examDuration"></span> minutes</li>
+                                            <li><strong>Questions:</strong> <span id="totalQuestions"></span></li>
+                                            <li><strong>Type:</strong> Multiple Choice (MCQ)</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Notes:</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i>Each question has 4 options</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Select only one answer per question</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>You can review and change answers</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>Auto-submit when time expires</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-exclamation-triangle me-2"></i>Exam Rules:</h6>
+                                <ol class="mb-0">
+                                    <li>Once you start the exam, the timer will begin and cannot be paused</li>
+                                    <li>Do not refresh the page or navigate away during the exam</li>
+                                    <li>Ensure you have a stable internet connection</li>
+                                    <li>Submit your exam before time runs out</li>
+                                    <li>Results will be displayed immediately after submission</li>
+                                </ol>
+                            </div>
+
+                            <div class="text-center">
+                                <button class="btn btn-success btn-lg" onclick="startExam()">
+                                    <i class="fas fa-play me-2"></i>Start Exam
+                                </button>
+                                <a href="/student/dashboard" class="btn btn-outline-secondary btn-lg ms-3">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exam Questions -->
+        <div id="examScreen" class="exam-screen" style="display: none;">
+            <div class="row">
+                <!-- Question Navigation Sidebar -->
+                <div class="col-lg-3">
+                    <div class="card question-nav-card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-list me-2"></i>Question Navigation</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="exam-progress mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <small>Progress</small>
+                                    <small><span id="answeredCount">0</span>/<span id="totalQuestionsNav">0</span></small>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" id="examProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div id="questionNavigation" class="question-nav-grid">
+                                <!-- Question navigation buttons will be generated here -->
+                            </div>
+                            <div class="mt-3">
+                                <div class="legend">
+                                    <div class="legend-item">
+                                        <span class="legend-color answered"></span>
+                                        <small>Answered</small>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-color current"></span>
+                                        <small>Current</small>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-color unanswered"></span>
+                                        <small>Unanswered</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Content -->
+                <div class="col-lg-9">
+                    <div class="card question-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-question-circle me-2"></i>
+                                Question <span id="currentQuestionNumber">1</span> of <span id="totalQuestionsHeader">0</span>
+                            </h6>
+                            <div class="question-timer">
+                                <i class="fas fa-clock me-1"></i>
+                                <span id="questionTimeRemaining">00:00:00</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="questionContent">
+                                <div class="question-text mb-4">
+                                    <h5 id="questionText">Loading question...</h5>
+                                </div>
+                                <div class="options-container">
+                                    <div class="form-check option-item" onclick="selectOption('A')">
+                                        <input class="form-check-input" type="radio" name="answer" id="optionA" value="A">
+                                        <label class="form-check-label" for="optionA" id="optionAText">
+                                            Option A
+                                        </label>
+                                    </div>
+                                    <div class="form-check option-item" onclick="selectOption('B')">
+                                        <input class="form-check-input" type="radio" name="answer" id="optionB" value="B">
+                                        <label class="form-check-label" for="optionB" id="optionBText">
+                                            Option B
+                                        </label>
+                                    </div>
+                                    <div class="form-check option-item" onclick="selectOption('C')">
+                                        <input class="form-check-input" type="radio" name="answer" id="optionC" value="C">
+                                        <label class="form-check-label" for="optionC" id="optionCText">
+                                            Option C
+                                        </label>
+                                    </div>
+                                    <div class="form-check option-item" onclick="selectOption('D')">
+                                        <input class="form-check-input" type="radio" name="answer" id="optionD" value="D">
+                                        <label class="form-check-label" for="optionD" id="optionDText">
+                                            Option D
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer d-flex justify-content-between">
+                            <button class="btn btn-outline-primary" id="prevButton" onclick="previousQuestion()" disabled>
+                                <i class="fas fa-arrow-left me-2"></i>Previous
+                            </button>
+                            <div class="question-actions">
+                                <button class="btn btn-warning me-2" onclick="clearAnswer()">
+                                    <i class="fas fa-eraser me-1"></i>Clear
+                                </button>
+                                <button class="btn btn-success" id="nextButton" onclick="nextQuestion()">
+                                    Next<i class="fas fa-arrow-right ms-2"></i>
+                                </button>
+                                <button class="btn btn-primary" id="submitButton" onclick="showSubmitConfirmation()" style="display: none;">
+                                    <i class="fas fa-check me-2"></i>Submit Exam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="resultsScreen" class="exam-screen" style="display: none;">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card results-card">
+                        <div class="card-header bg-success text-white text-center">
+                            <h3><i class="fas fa-trophy me-2"></i>Exam Completed!</h3>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="results-summary mb-4">
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <div class="result-stat">
+                                            <h2 class="text-primary" id="finalScore">0</h2>
+                                            <p class="text-muted">Score</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <div class="result-stat">
+                                            <h2 class="text-info" id="totalQuestionsResult">0</h2>
+                                            <p class="text-muted">Total Questions</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <div class="result-stat">
+                                            <h2 class="text-success" id="correctAnswers">0</h2>
+                                            <p class="text-muted">Correct</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <div class="result-stat">
+                                            <h2 class="text-danger" id="incorrectAnswers">0</h2>
+                                            <p class="text-muted">Incorrect</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="percentage-score mb-4">
+                                <div class="score-circle">
+                                    <h1 class="display-3" id="percentageScore">0%</h1>
+                                    <p class="lead" id="gradeText">Grade</p>
+                                </div>
+                            </div>
+
+                            <div class="exam-details mb-4">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Time Taken:</strong> <span id="timeTaken">00:00:00</span></p>
+                                        <p><strong>Exam Type:</strong> <span id="examTypeResult">Test</span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Date:</strong> <span id="examDate"></span></p>
+                                        <p><strong>Status:</strong> <span id="examStatus" class="badge bg-success">Completed</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="result-actions">
+                                <a href="/student/dashboard" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Back to Dashboard
+                                </a>
+                                <button class="btn btn-outline-secondary btn-lg ms-3" onclick="viewDetailedResults()">
+                                    <i class="fas fa-chart-bar me-2"></i>View Detailed Results
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Confirmation Modal -->
+    <div class="modal fade" id="submitConfirmationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Submit Exam</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to submit your exam?</p>
+                    <div class="submission-summary">
+                        <p><strong>Answered Questions:</strong> <span id="submissionAnsweredCount">0</span></p>
+                        <p><strong>Unanswered Questions:</strong> <span id="submissionUnansweredCount">0</span></p>
+                        <p><strong>Time Remaining:</strong> <span id="submissionTimeRemaining">00:00:00</span></p>
+                    </div>
+                    <div class="alert alert-warning">
+                        <small><i class="fas fa-info-circle me-1"></i>Once submitted, you cannot make any changes to your answers.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitExam()">
+                        <i class="fas fa-check me-2"></i>Submit Exam
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Warning Modal -->
+    <div class="modal fade" id="timeWarningModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-clock me-2"></i>Time Warning</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h5>Only <span id="warningTimeLeft">5</span> minutes remaining!</h5>
+                    <p>Please review your answers and submit your exam soon.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Continue Exam</button>
+                    <button type="button" class="btn btn-success" onclick="showSubmitConfirmation()" data-bs-dismiss="modal">
+                        Submit Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="/main.js"></script>
+    <script src="/exam.js"></script>
+</body>
+</html>
