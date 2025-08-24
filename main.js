@@ -145,7 +145,7 @@ async function loadCourses() {
     coursesContainer.innerHTML = courses
       .map(
         (course) => `
-          <div class="col-6 mb-4 d-flex">
+          <div class="col-6 col-lg-4 mb-4 d-flex">
             <div class="card shadow-sm w-100 course-card">
               <div class="card-body d-flex flex-column">
                 <div class="course-meta">
@@ -156,6 +156,7 @@ async function loadCourses() {
                 <p class="card-text text-muted mb-3">${course.description || "Comprehensive training program designed to equip you with industry-relevant skills."}</p>
                 <div class="course-meta mb-3">
                   <small><i class="fas fa-calendar me-1"></i>${formatSchedule(course.schedule)}</small>
+                  <small><i class="fas fa-money-bill-wave me-1"></i>Price: ${formatCurrency(course.registration_fee)}</small>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mt-auto">
                   <button class="btn btn-primary-custom" onclick="showCourseDetails(${course.id})">

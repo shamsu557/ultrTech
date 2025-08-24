@@ -312,6 +312,12 @@ h1, h2, h3, h4, h5, h6 {
   .course-card .course-meta {
     font-size: 0.5rem;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+  }
+
+  .course-card .course-meta small {
+    font-size: 0.5rem;
   }
 
   .course-badge {
