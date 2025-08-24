@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - UltraTech Global Solution LTD</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/dashboard.css">
+    <link rel="stylesheet" href="/global.css">  
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap me-2"></i>
+                UltraTech Global Solution
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        <span id="studentName">Loading...</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="showSection('profile')">
+                            <i class="fas fa-user me-2"></i>Profile
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-3 col-md-4">
+                <div class="card dashboard-sidebar">
+                    <div class="card-body">
+                        <div class="student-info text-center mb-4">
+                            <div class="student-avatar mb-3">
+                                <img id="studentAvatar" src="/placeholder.svg?height=100&width=100" 
+                                     alt="Student Avatar" class="rounded-circle">
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="changeProfilePicture()">
+                                    <i class="fas fa-camera me-1"></i>Change Photo
+                                </button>
+                            </div>
+                            <h6 id="sidebarStudentName">Loading...</h6>
+                            <p class="text-muted mb-1" id="admissionNumber">Loading...</p>
+                            <p class="text-muted" id="courseName">Loading...</p>
+                        </div>
+
+                        <div class="dashboard-menu">
+                            <a href="#" class="menu-item active" onclick="showSection('overview')" data-section="overview">
+                                <i class="fas fa-tachometer-alt me-2"></i>Overview
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('profile')" data-section="profile">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('payments')" data-section="payments">
+                                <i class="fas fa-credit-card me-2"></i>Payments
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('assignments')" data-section="assignments">
+                                <i class="fas fa-tasks me-2"></i>Assignments
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('results')" data-section="results">
+                                <i class="fas fa-chart-bar me-2"></i>Results
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('exams')" data-section="exams">
+                                <i class="fas fa-clipboard-check me-2"></i>Exams & Tests
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-9 col-md-8">
+                <!-- Overview Section -->
+                <div id="overview-section" class="dashboard-section">
+                    <div class="row">
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+                                    <h4 id="totalAssignments">0</h4>
+                                    <p class="text-muted">Assignments</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-check fa-2x text-success mb-2"></i>
+                                    <h4 id="completedAssignments">0</h4>
+                                    <p class="text-muted">Completed</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                                    <h4 id="overallGrade">0%</h4>
+                                    <p class="text-muted">Overall Grade</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar fa-2x text-info mb-2"></i>
+                                    <h4 id="upcomingExams">0</h4>
+                                    <p class="text-muted">Upcoming Exams</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activities -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-clock me-2"></i>Recent Activities</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recentActivities">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading activities...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div id="profile-section" class="dashboard-section" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-user me-2"></i>Student Profile</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="profileForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="profileFirstName" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="profileLastName" readonly>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="profileEmail" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="profilePhone">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Gender</label>
+                                        <input type="text" class="form-control" id="profileGender" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Date of Birth</label>
+                                        <input type="date" class="form-control" id="profileDOB" readonly>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" id="profileAddress" rows="3"></textarea>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Course</label>
+                                        <input type="text" class="form-control" id="profileCourse" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Admission Number</label>
+                                        <input type="text" class="form-control" id="profileAdmissionNumber" readonly>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <input type="text" class="form-control" id="profileStatus" readonly>
+                                </div>
+                                <button type="submit" class="btn btn-primary-custom">
+                                    <i class="fas fa-save me-2"></i>Update Profile
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Section -->
+                <div id="payments-section" class="dashboard-section" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-credit-card me-2"></i>Payment History</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="paymentsContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading payments...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outstanding Payments -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-exclamation-triangle me-2"></i>Outstanding Payments</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="outstandingPayments">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading outstanding payments...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assignments Section -->
+                <div id="assignments-section" class="dashboard-section" style="display: none;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="fas fa-tasks me-2"></i>Assignments</h5>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary btn-sm active" onclick="filterAssignments('all')">All</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="filterAssignments('pending')">Pending</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="filterAssignments('submitted')">Submitted</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="filterAssignments('graded')">Graded</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="assignmentsContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading assignments...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="dashboard-section" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="card result-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+                                    <h4 id="assignmentGrade">0%</h4>
+                                    <p class="text-muted">Assignments (60%)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card result-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-list fa-2x text-warning mb-2"></i>
+                                    <h4 id="testGrade">0%</h4>
+                                    <p class="text-muted">Tests (10%)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card result-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-check fa-2x text-success mb-2"></i>
+                                    <h4 id="examGrade">0%</h4>
+                                    <p class="text-muted">Exams (30%)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line me-2"></i>Detailed Results</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="overall-grade mb-4 text-center">
+                                <h2 class="display-4" id="finalGrade">0%</h2>
+                                <p class="lead" id="gradeStatus">Overall Grade</p>
+                            </div>
+                            <div id="detailedResults">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading detailed results...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exams Section -->
+                <div id="exams-section" class="dashboard-section" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-clipboard-check me-2"></i>Available Exams & Tests</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="examsContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading exams...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exam History -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-history me-2"></i>Exam History</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="examHistory">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading exam history...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Upload Modal -->
+    <div class="modal fade" id="assignmentUploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Submit Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignmentUploadForm" enctype="multipart/form-data">
+                        <input type="hidden" id="assignmentId">
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Title</label>
+                            <input type="text" class="form-control" id="assignmentTitle" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Due Date</label>
+                            <input type="text" class="form-control" id="assignmentDueDate" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="assignmentFile" class="form-label">Upload Your Response *</label>
+                            <input type="file" class="form-control" id="assignmentFile" 
+                                   accept=".pdf,.doc,.docx,.zip,.rar" required>
+                            <small class="text-muted">Accepted formats: PDF, Word, ZIP, RAR</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="submissionNotes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="submissionNotes" rows="3" 
+                                      placeholder="Any additional notes about your submission..."></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-2"></i>Submit Assignment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Picture Upload Modal -->
+    <div class="modal fade" id="profilePictureModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-camera me-2"></i>Change Profile Picture</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="profilePictureForm" enctype="multipart/form-data">
+                        <div class="mb-3 text-center">
+                            <img id="previewImage" src="/placeholder.svg?height=150&width=150" 
+                                 alt="Preview" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                        </div>
+                        <div class="mb-3">
+                            <label for="profilePictureFile" class="form-label">Select New Picture</label>
+                            <input type="file" class="form-control" id="profilePictureFile" 
+                                   accept=".jpg,.jpeg,.png" required>
+                            <small class="text-muted">Accepted formats: JPG, PNG (Max 2MB)</small>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary-custom">
+                                <i class="fas fa-save me-2"></i>Update Picture
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="/js/main.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>

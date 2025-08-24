@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Application - UltraTech Global Solution LTD</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/global.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container">
+             <a class="navbar-brand fw-bold brand-text" href="/">
+  <i class="fas fa-graduation-cap me-2"></i> UltraTech Global Solution
+</a>
+<div class="ms-auto">
+  <button class="btn btn-primary text-white" onclick="window.location.href='/'">
+    Back to Home
+  </button>
+</div>
+
+        </div>
+    </nav>
+
+    <div class="container mt-5 pt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h3><i class="fas fa-user-plus me-2"></i>Student Application</h3>
+                        <p class="mb-0">Step 1: Complete your application and pay the application fee of ₦100</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Application Guide -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Application Process Guide:</h6>
+                            <ol class="mb-0">
+                                <li>Fill out the application form below</li>
+                                <li>Pay the application fee of ₦100 via Paystack</li>
+                                <li>Receive your Application Number and receipt</li>
+                                <li>Use your Application Number to complete registration</li>
+                            </ol>
+                            <p class="mt-2 mb-0"><strong>Note:</strong> Backend, Frontend, and AI Starter Kit courses are only available on weekends.</p>
+                        </div>
+
+                        <form id="applicationForm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="firstName" class="form-label">First Name *</label>
+                                    <input type="text" class="form-control form-control-custom" id="firstName" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="lastName" class="form-label">Other Names *</label>
+                                    <input type="text" class="form-control form-control-custom" id="lastName" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="email" class="form-label">Email Address *</label>
+                                    <input type="email" class="form-control form-control-custom" id="email" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="phone" class="form-label">Phone Number *</label>
+                                    <input type="tel" class="form-control form-control-custom" id="phone" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="gender" class="form-label">Gender *</label>
+                                    <select class="form-select form-control-custom" id="gender" required>
+                                        <option value="">Select Gender</option>
+                                        Scre<option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="dateOfBirth" class="form-label">Date of Birth *</label>
+                                    <input type="date" class="form-control form-control-custom" id="dateOfBirth" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="address" class="form-label">Address *</label>
+                                <textarea class="form-control form-control-custom" id="address" rows="3" required></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="courseId" class="form-label">Select Course *</label>
+                                <select class="form-select form-control-custom" id="courseId" required>
+                                    <option value="">Loading courses...</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="schedule" class="form-label">Preferred Schedule *</label>
+                                <select class="form-select form-control-custom" id="schedule" required>
+                                    <option value="">Select Schedule</option>
+                                    <option value="morning">Morning Classes</option>
+                                    <option value="evening">Evening Classes</option>
+                                </select>
+                                <small class="text-muted" id="scheduleNote">Note: Select your preferred schedule</small>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="profilePicture" class="form-label">Profile Picture *</label>
+                            <input type="file" class="form-control form-control-custom" id="profilePicture" accept="image/*" required>
+                            <small class="text-muted">Upload a clear passport-sized photo (JPG, PNG, max 2MB)</small>
+                        </div>
+
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-credit-card me-2"></i>Application Fee: ₦100</h6>
+                                <p class="mb-0">You will be redirected to Paystack to complete your payment securely.</p>
+                            </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-primary w-50 mx-auto">
+                                <i class="fas fa-credit-card me-2"></i>
+                                Submit Application & Pay ₦100
+                            </button>
+                        </div>
+
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Already Applied Section -->
+                <div class="card mt-4">
+                    <div class="card-body text-center">
+                        <h6>Already applied?</h6>
+                        <p class="text-muted">Use your Application Number to complete registration</p>
+                        <a href="/student/register" class="btn btn-outline-primary">Complete Registration</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Application Successful!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-file-alt fa-3x text-success mb-3"></i>
+                        <h4>Your Application Number:</h4>
+                        <h2 class="text-primary" id="applicationNumber"></h2>
+                    </div>
+                    <p>Please save this Application Number. You will need it to complete your registration.</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" onclick="downloadReceipt()">
+                            <i class="fas fa-download me-2"></i>Download Application Form
+                        </button>
+                        <a href="/student/register" class="btn btn-primary">
+                            Complete Registration Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Paystack JS -->
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <!-- Custom JS -->
+    <script src="/main.js"></script>
+    <script src="/application.js"></script>
+</body>
+</html>
