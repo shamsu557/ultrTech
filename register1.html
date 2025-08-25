@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - UltraTech Global Solution LTD</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/global.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap me-2"></i>
+                UltraTech Global Solution
+            </a>
+            <div class="ms-auto">
+                <a href="/" class="btn btn-outline-primary">Back to Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5 pt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-success text-white text-center">
+                        <h3><i class="fas fa-user-check me-2"></i>Student Registration</h3>
+                        <p class="mb-0">Step 2: Complete your registration and pay the registration fee</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="message"></div>
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Registration Process Guide:</h6>
+                            <ol class="mb-0">
+                                <li>Enter your Application Number to verify your application</li>
+                                <li>Pay the registration fee of ₦500 (2 installments available)</li>
+                                <li>Set up your security question for password recovery</li>
+                                <li>Upload your highest qualification document</li>
+                                <li>Receive your Admission Number and admission letter</li>
+                            </ol>
+                        </div>
+
+                        <div id="step1" class="registration-step">
+                            <h5><i class="fas fa-search me-2"></i>Step 1: Verify Application</h5>
+                            <form id="verifyApplicationForm">
+                                <div class="mb-3">
+                                    <label for="applicationNumber" class="form-label">Application Number *</label>
+                                    <input type="text" class="form-control form-control-custom" id="applicationNumber" 
+                                           placeholder="Enter your Application Number (e.g., APP1234567890)" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary-custom">
+                                    <i class="fas fa-search me-2"></i>Verify Application
+                                </button>
+                            </form>
+                        </div>
+
+                        <div id="step2" class="registration-step" style="display: none;">
+                            <h5><i class="fas fa-credit-card me-2"></i>Step 2: Registration Payment</h5>
+                            <div class="student-info mb-4 p-3 bg-light rounded">
+                                <h6>Application Details:</h6>
+                                <div id="studentDetails"></div>
+                            </div>
+                            <div class="payment-options">
+                                <h6>Choose Payment Option:</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card payment-card" onclick="selectPayment('full')">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-money-bill-wave fa-2x text-success mb-2"></i>
+                                                <h6>Full Payment</h6>
+                                                <h4 class="text-success">₦500</h4>
+                                                <p class="text-muted">Pay once and complete registration</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card payment-card" onclick="selectPayment('installment')">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-calendar-alt fa-2x text-primary mb-2"></i>
+                                                <h6>Installment Payment</h6>
+                                                <h4 class="text-primary">₦250 × 2</h4>
+ publication class="text-muted">Pay in two installments</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button id="proceedPayment" class="btn btn-success btn-lg w-100" style="display: none;" onclick="processPayment()">
+                                    Proceed to Payment
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="step3" class="registration-step" style="display: none;">
+                            <h5><i class="fas fa-shield-alt me-2"></i>Step 3: Security Setup</h5>
+                            <form id="securityForm">
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Create Password *</label>
+                                    <input type="password" class="form-control form-control-custom" id="password" required>
+                                    <small class="text-muted">Minimum 8 characters with letters and numbers</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirm Password *</label>
+                                    <input type="password" class="form-control form-control-custom" id="confirmPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="securityQuestion" class="form-label">Security Question *</label>
+                                    <select class="form-select form-control-custom" id="securityQuestion" required>
+                                        <option value="">Select a security question</option>
+                                        <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+                                        <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+                                        <option value="What city were you born in?">What city were you born in?</option>
+                                        <option value="What is your favorite food?">What is your favorite food?</option>
+                                        <option value="What was your first school's name?">What was your first school's name?</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="securityAnswer" class="form-label">Security Answer *</label>
+                                    <input type="text" class="form-control form-control-custom" id="securityAnswer" required>
+                                    <small class="text-muted">This will be used for password recovery</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary-custom">
+                                    <i class="fas fa-arrow-right me-2"></i>Continue to Document Upload
+                                </button>
+                            </form>
+                        </div>
+
+                        <div id="step4" class="registration-step" style="display: none;">
+                            <h5><i class="fas fa-upload me-2"></i>Step 4: Document Upload</h5>
+                            <form id="documentForm" enctype="multipart/form-data">
+                                <div class="mb-4">
+                                    <label for="highestQualification" class="form-label">Highest Qualification * (Required)</label>
+                                    <input type="file" class="form-control form-control-custom" id="highestQualification" 
+                                           accept=".pdf,.jpg,.jpeg,.png" required>
+                                    <small class="text-muted">Upload your highest educational qualification (PDF, JPG, PNG)</small>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label">Additional Qualifications (Optional)</label>
+                                    <div id="additionalQualifications">
+                                        <div class="additional-qual-item mb-2">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <input type="text" class="form-control form-control-custom" 
+                                                           placeholder="Qualification Name" name="qualName[]">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="file" class="form-control form-control-custom" 
+                                                           accept=".pdf,.jpg,.jpeg,.png" name="qualFile[]">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addQualificationField()">
+                                        <i class="fas fa-plus me-1"></i>Add Another Qualification
+                                    </button>
+                                </div>
+                                <button type="submit" class="btn btn-success btn-lg w-100">
+                                    <i class="fas fa-check me-2"></i>Complete Registration
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="registrationSuccessModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-graduation-cap me-2"></i>Registration Complete!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-certificate fa-4x text-success mb-3"></i>
+                        <h4>Congratulations! Your registration is complete.</h4>
+                        <div class="admission-details p-3 bg-light rounded">
+                            <h5>Your Admission Number:</h5>
+                            <h2 class="text-primary" id="admissionNumber"></h2>
+                            <p class="text-muted">This is your new username for login</p>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" onclick="downloadAdmissionLetter()">
+                            <i class="fas fa-download me-2"></i>Download Admission Letter
+                        </button>
+                        <button class="btn btn-primary" onclick="downloadReceipt()">
+                            <i class="fas fa-receipt me-2"></i>Download Payment Receipt
+                        </button>
+                        <a href="/student/login" class="btn btn-outline-primary">
+                            Login to Student Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Payment Required</h5>
+                </div>
+                <div classapply.html="modal-body">
+                    <p>Application fee of ₦200 is pending. Please complete the payment to proceed with registration.</p>
+                    <div class="d-grid">
+                        <button class="btn btn-primary" id="payNowButton">
+                            <i class="fas fa-credit-card me-2"></i>Pay Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="main.js"></script>
+    <script src="/registration.js"></script>
+</body>
+</html>
