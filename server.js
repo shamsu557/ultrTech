@@ -134,8 +134,14 @@ app.get("/api/student/verify-application/:applicationNumber", (req, res) => {
 
   db.query(query, [applicationNumber], (err, results) => {
     if (err) {
-      console.error("Error verifying application:", err);
-      return res.status(500).json({ error: "Database error" });
+      console.error("Error verifying application:", {
+        error: err.message,
+        code: err.code,
+        sqlMessage: err.sqlMessage,
+        sqlState: err.sqlState,
+        stack: err.stack
+      });
+      return res.status(500).json({ error: "Database error: " + err.message });
     }
 
     if (results.length === 0) {
@@ -148,7 +154,6 @@ app.get("/api/student/verify-application/:applicationNumber", (req, res) => {
     });
   });
 });
-
 // Setup security
 app.post("/api/student/setup-security", async (req, res) => {
   const { studentId, password, securityQuestion, securityAnswer } = req.body;
