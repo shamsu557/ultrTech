@@ -48,7 +48,6 @@ async function verifyApplication(e) {
       headers: { "Content-Type": "application/json" },
     });
 
-    // Check if response is OK and JSON
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Server responded with status ${response.status}: ${errorText}`);
@@ -58,28 +57,23 @@ async function verifyApplication(e) {
 
     if (result.success) {
       studentData = result.student;
-      registrationFee = 500; // Hardcode or fetch from server if available
+      registrationFee = 500; // Hardcoded based on server logic in /api/student/payments
       displayStudentDetails(result.student);
       updatePaymentOptions();
       showStep(2);
     } else {
-      // Check if payment is not yet made
-      if (result.error === "Application not found or already processed") {
-        const paymentModal = new bootstrap.Modal(document.getElementById("paymentModal"));
-        paymentModal.show();
-        setupPaymentButton(applicationNumber);
-      } else {
-        throw new Error(result.error || "Application verification failed");
-      }
+      // Assume application not found means payment is pending
+      const paymentModal = new bootstrap.Modal(document.getElementById("paymentModal"));
+      paymentModal.show();
+      setupPaymentButton(applicationNumber);
     }
   } catch (error) {
     console.error("Verification error:", error);
-    showMessage(error.message || "Application verification failed", "danger");
+    showMessage(error.message || "Application verification failed. Please ensure the application number is correct or complete the payment.", "danger");
   } finally {
     setLoadingState(submitBtn, false, originalText);
   }
 }
-
 function updatePaymentOptions() {
   const fullPaymentAmount = document.getElementById("fullPaymentAmount");
   const installmentAmount = document.getElementById("installmentAmount");
