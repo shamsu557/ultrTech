@@ -42,36 +42,35 @@ async function verifyApplication(e) {
   setLoadingState(submitBtn, true, originalText);
 
   try {
-    const paymentResponse = await fetch("/api/application/verify", {
-      method: "POST",
+    // Call the correct endpoint to verify the application
+    const response = await fetch(`/api/student/verify-application/${applicationNumber}`, {
+      method: "GET", // The server endpoint uses GET
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ applicationNumber }),
     });
-    const paymentResult = await paymentResponse.json();
 
-    if (!paymentResult.success) {
-      throw new Error(paymentResult.error || "Payment verification failed");
+    // Check if response is OK and JSON
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Server responded with status ${response.status}: ${errorText}`);
     }
 
-    if (!paymentResult.paid) {
-      const paymentModal = new bootstrap.Modal(document.getElementById("paymentModal"));
-      paymentModal.show();
-      setupPaymentButton(applicationNumber);
-      setLoadingState(submitBtn, false, originalText);
-      return;
-    }
-
-    const response = await fetch(`/api/application/details?appNum=${applicationNumber}`);
     const result = await response.json();
 
     if (result.success) {
       studentData = result.student;
-      registrationFee = result.registration_fee;
+      registrationFee = 500; // Hardcode or fetch from server if available
       displayStudentDetails(result.student);
       updatePaymentOptions();
       showStep(2);
     } else {
-      throw new Error(result.error || "Application not found");
+      // Check if payment is not yet made
+      if (result.error === "Application not found or already processed") {
+        const paymentModal = new bootstrap.Modal(document.getElementById("paymentModal"));
+        paymentModal.show();
+        setupPaymentButton(applicationNumber);
+      } else {
+        throw new Error(result.error || "Application verification failed");
+      }
     }
   } catch (error) {
     console.error("Verification error:", error);
@@ -233,17 +232,24 @@ function setupPaymentButton(applicationNumber) {
   const payButton = document.getElementById("payNowButton");
   payButton.onclick = async () => {
     try {
-      const response = await fetch(`/api/application/details?appNum=${applicationNumber}`);
+      // Fetch student details to get email and other info
+      const response = await fetch(`/api/student/verify-application/${applicationNumber}`);
       const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}: ${await response.text()}`);
+      }
+
       if (!result.success) {
         throw new Error(result.error || "Application not found");
       }
+
       const student = result.student;
 
       const handler = PaystackPop.setup({
         key: "pk_live_661e479efe8cccc078d6e6c078a5b6e0dc963079",
         email: student.email,
-        amount: 10000, // ₦100 in kobo
+        amount: 10000, // ₦100 in kobo (adjust based on your application fee)
         currency: "NGN",
         ref: generateReference("APP"),
         metadata: {
@@ -253,10 +259,55 @@ function setupPaymentButton(applicationNumber) {
               variable_name: "application_number",
               value: applicationNumber,
             },
+            {
+              display_name: "First Name",
+              variable_name: "first_name",
+              value: student.first_name,
+            },
+            {
+              display_name: "Last Name",
+              variable_name: "last_name",
+              value: student.last_name,
+            },
+            {
+              display_name: "Email",
+              variable_name: "email",
+              value: student.email,
+            },
+            {
+              display_name: "Phone",
+              variable_name: "phone",
+              value: student.phone,
+            },
+            {
+              display_name: "Gender",
+              variable_name: "gender",
+              value: student.gender,
+            },
+            {
+              display_name: "Date of Birth",
+              variable_name: "date_of_birth",
+              value: student.date_of_birth,
+            },
+            {
+              display_name: "Address",
+              variable_name: "address",
+              value: student.address,
+            },
+            {
+              display_name: "Course ID",
+              variable_name: "course_id",
+              value: student.course_id,
+            },
+            {
+              display_name: "Schedule",
+              variable_name: "schedule",
+              value: student.schedule,
+            },
           ],
         },
         callback: (response) => {
-          console.log("Paystack callback response:", response); // Debug log
+          console.log("Paystack callback response:", response);
           verifyApplicationPayment(response.reference, applicationNumber);
         },
         onClose: () => {
@@ -271,131 +322,6 @@ function setupPaymentButton(applicationNumber) {
     }
   };
 }
-
-async function verifyApplicationPayment(reference, applicationNumber) {
-  try {
-    const response = await fetch("/api/payment/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        reference,
-        paymentType: "Application",
-        applicationNumber,
-      }),
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      showMessage("Payment verified successfully! Please verify application again.", "success");
-      const paymentModal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
-      paymentModal.hide();
-    } else {
-      throw new Error(result.error || "Payment verification failed");
-    }
-  } catch (error) {
-    console.error("Payment verification error:", error);
-    showMessage("Payment verification failed: " + error.message + ". Please contact support.", "danger");
-  }
-}
-
-async function setupSecurity(e) {
-  e.preventDefault();
-  const password = document.getElementById("password").value;
-  const confirmPassword = document.getElementById("confirmPassword").value;
-  const securityQuestion = document.getElementById("securityQuestion").value;
-  const securityAnswer = document.getElementById("securityAnswer").value;
-  const button = e.target.querySelector('button[type="submit"]');
-  const originalText = button.innerHTML;
-
-  if (password !== confirmPassword) {
-    showMessage("Passwords do not match", "danger");
-    return;
-  }
-
-  if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-    showMessage("Password must be at least 8 characters with letters and numbers", "danger");
-    return;
-  }
-
-  setLoadingState(button, true, originalText);
-
-  try {
-    const response = await fetch("/api/student/setup-security", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        studentId: studentData.id,
-        password,
-        securityQuestion,
-        securityAnswer,
-      }),
-    });
-    const result = await response.json();
-
-    if (result.success) {
-      showMessage("Security setup completed", "success");
-      showStep(4);
-    } else {
-      throw new Error(result.error || "Security setup failed");
-    }
-  } catch (error) {
-    console.error("Security setup error:", error);
-    showMessage("Security setup failed: " + error.message, "danger");
-  } finally {
-    setLoadingState(button, false, originalText);
-  }
-}
-
-async function completeRegistration(e) {
-  e.preventDefault();
-  const highestQualification = document.getElementById("highestQualification").files[0];
-  const button = e.target.querySelector('button[type="submit"]');
-  const originalText = button.innerHTML;
-
-  if (!highestQualification) {
-    showMessage("Please upload your highest qualification", "danger");
-    return;
-  }
-
-  setLoadingState(button, true, originalText);
-
-  const formData = new FormData();
-  formData.append("studentId", studentData.id);
-  formData.append("highestQualification", highestQualification);
-
-  const qualNames = document.querySelectorAll('input[name="qualName[]"]');
-  const qualFiles = document.querySelectorAll('input[name="qualFile[]"]');
-  qualNames.forEach((name, index) => {
-    if (name.value && qualFiles[index].files[0]) {
-      formData.append(`additionalQualName_${index}`, name.value);
-      formData.append(`additionalQualFile_${index}`, qualFiles[index].files[0]);
-    }
-  });
-
-  try {
-    const response = await fetch("/api/student/complete-registration", {
-      method: "POST",
-      body: formData,
-    });
-    const result = await response.json();
-
-    if (result.success) {
-      studentData.admissionNumber = result.admissionNumber;
-      document.getElementById("admissionNumber").textContent = result.admissionNumber;
-      const successModal = new bootstrap.Modal(document.getElementById("registrationSuccessModal"));
-      successModal.show();
-    } else {
-      throw new Error(result.error || "Registration failed");
-    }
-  } catch (error) {
-    console.error("Registration error:", error);
-    showMessage("Registration failed: " + error.message, "danger");
-  } finally {
-    setLoadingState(button, false, originalText);
-  }
-}
-
 function showStep(step) {
   document.querySelectorAll(".registration-step").forEach((el) => {
     el.style.display = "none";
