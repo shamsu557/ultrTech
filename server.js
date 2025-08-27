@@ -386,23 +386,25 @@ app.post("/api/student/reset-password", async (req, res) => {
 // Payment verification
 app.post("/api/payment/verify", async (req, res) => {
   try {
-    const { reference, paymentType, installmentType, studentId } = req.body;
+    const { reference, paymentType, installmentType, studentId, applicationNumber } = req.body;
 
     // Verify Paystack payment
     const transaction = await verifyPaystackPayment(reference);
 
     if (!transaction || transaction.status !== "success") {
-      return res.status(400).json({ error: "Payment verification failed" });
+      return res.status(400).json({ success: false, error: "Payment verification failed" });
     }
 
     const amount = transaction.amount / 100; // Paystack returns in kobo
     const metadata = transaction.metadata || {};
 
     if (paymentType === "Application") {
-      const applicationNumber = metadata.application_number;
+      if (!applicationNumber) {
+        return res.status(400).json({ success: false, error: "Application number is required" });
+      }
 
       if (!metadata.course_id) {
-        return res.status(400).json({ error: "Missing course_id in metadata" });
+        return res.status(400).json({ success: false, error: "Missing course_id in metadata" });
       }
 
       // Validate course_id exists
@@ -410,49 +412,49 @@ app.post("/api/payment/verify", async (req, res) => {
       db.query(courseCheckQuery, [metadata.course_id], (err, courseResults) => {
         if (err) {
           console.error("Error checking course:", err);
-          return res.status(500).json({ error: "Database error: " + err.message });
+          return res.status(500).json({ success: false, error: "Database error: " + err.message });
         }
 
         if (courseResults.length === 0) {
-          return res
-            .status(400)
-            .json({ error: `Invalid course ID: ${metadata.course_id}. Please select a valid course.` });
+          return res.status(400).json({
+            success: false,
+            error: `Invalid course ID: ${metadata.course_id}. Please select a valid course.`,
+          });
         }
 
-        console.log("Received metadata:", metadata);
-
         // Insert into students table
-       const query = `INSERT INTO students (application_number, first_name, last_name, email, phone, gender, date_of_birth, address, course_id, schedule, profile_picture, status, reference_number, amount, payment_date)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS UNSIGNED), ?, ?, 'Applied', ?, ?, NOW())`;
-db.query(
-    query,
-    [
-        applicationNumber,
-        metadata.first_name,
-        metadata.last_name,
-        metadata.email,
-        metadata.phone,
-        metadata.gender,
-        metadata.date_of_birth,
-        metadata.address,
-        metadata.course_id, // Cast to integer for safety
-        metadata.schedule,
-        metadata.profile_picture || null, // Handle null profile picture
-        reference,
-        amount,
-    ],          (err, result) => {
+        const query = `INSERT INTO students (application_number, first_name, last_name, email, phone, gender, date_of_birth, address, course_id, schedule, profile_picture, status, reference_number, amount, payment_date)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Applied', ?, ?, NOW())`;
+        db.query(
+          query,
+          [
+            applicationNumber,
+            metadata.first_name,
+            metadata.last_name,
+            metadata.email,
+            metadata.phone,
+            metadata.gender,
+            metadata.date_of_birth,
+            metadata.address,
+            metadata.course_id,
+            metadata.schedule,
+            metadata.profile_picture || null,
+            reference,
+            amount,
+          ],
+          (err, result) => {
             if (err) {
               console.error("Error creating application:", err);
-
               if (err.code === "ER_DUP_ENTRY") {
-                return res.status(400).json({ error: "Email or application already exists" });
+                return res.status(400).json({ success: false, error: "Email or application number already exists" });
               }
               if (err.code === "ER_NO_REFERENCED_ROW_2") {
                 return res.status(400).json({
+                  success: false,
                   error: `Course ID ${metadata.course_id} does not exist in the courses table`,
                 });
               }
-              return res.status(500).json({ error: `Database error: ${err.message}` });
+              return res.status(500).json({ success: false, error: `Database error: ${err.message}` });
             }
 
             res.json({ success: true, applicationNumber });
@@ -465,7 +467,7 @@ db.query(
       const totalInstallments = installmentType === "full" ? 1 : 2;
 
       if (!studentId) {
-        return res.status(400).json({ error: "Missing studentId for payment" });
+        return res.status(400).json({ success: false, error: "Missing studentId for payment" });
       }
 
       const paymentQuery = `
@@ -481,7 +483,7 @@ db.query(
         (err, result) => {
           if (err) {
             console.error("Error recording payment:", err);
-            return res.status(500).json({ error: "Payment recording failed: " + err.message });
+            return res.status(500).json({ success: false, error: "Payment recording failed: " + err.message });
           }
 
           res.json({ success: true });
@@ -489,8 +491,8 @@ db.query(
       );
     }
   } catch (error) {
-    console.error("Unexpected error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Payment verification error:", error);
+    res.status(500).json({ success: false, error: "Internal server error: " + error.message });
   }
 });
 
