@@ -39,9 +39,11 @@ function setupCourseScheduleRestriction() {
         if (department === "Backend" || department === "Frontend" || department === "AI") {
             scheduleNote.textContent = "Note: This course is only available on weekends";
             scheduleSelect.disabled = true;
+            scheduleSelect.value = "weekend";
         } else {
             scheduleNote.textContent = "Note: Select your preferred schedule";
             scheduleSelect.disabled = false;
+            scheduleSelect.value = "";
         }
     });
 }
@@ -51,7 +53,7 @@ function validateForm(form) {
     const inputs = form.querySelectorAll("input[required], select[required]");
     let isValid = true;
     inputs.forEach((input) => {
-        if (!input.value.trim()) {
+        if (!input.value.trim() && input.type !== "file") {
             input.classList.add("is-invalid");
             let errorDiv = input.nextElementSibling;
             if (!errorDiv || !errorDiv.classList.contains("invalid-feedback")) {
@@ -60,6 +62,16 @@ function validateForm(form) {
                 input.parentNode.insertBefore(errorDiv, input.nextSibling);
             }
             errorDiv.textContent = `Please enter your ${input.id}`;
+            isValid = false;
+        } else if (input.type === "file" && !input.files[0]) {
+            input.classList.add("is-invalid");
+            let errorDiv = input.nextElementSibling;
+            if (!errorDiv || !errorDiv.classList.contains("invalid-feedback")) {
+                errorDiv = document.createElement("div");
+                errorDiv.className = "invalid-feedback";
+                input.parentNode.insertBefore(errorDiv, input.nextSibling);
+            }
+            errorDiv.textContent = `Please upload a ${input.id}`;
             isValid = false;
         } else {
             input.classList.remove("is-invalid");
@@ -121,6 +133,35 @@ function setupApplicationForm() {
                 ? "weekend" 
                 : document.getElementById("schedule").value;
 
+            const formData = new FormData();
+            formData.append("firstName", document.getElementById("firstName").value.trim());
+            formData.append("lastName", document.getElementById("lastName").value.trim());
+            formData.append("email", document.getElementById("email").value.trim());
+            formData.append("phone", document.getElementById("phone").value.trim());
+            formData.append("gender", document.getElementById("gender").value);
+            formData.append("dateOfBirth", document.getElementById("dateOfBirth").value);
+            formData.append("address", document.getElementById("address").value.trim());
+            formData.append("courseId", document.getElementById("courseId").value);
+            formData.append("schedule", schedule);
+            const profilePictureFile = document.getElementById("profilePicture").files[0];
+            if (profilePictureFile) {
+                formData.append("profilePicture", profilePictureFile);
+            } else {
+                throw new Error("Profile picture is required");
+            }
+
+            // Send form data to server
+            const response = await fetch("/api/student/apply", {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || "Failed to submit application");
+            }
+
+            const { applicationNumber, profilePicturePath } = result;
             const applicationData = {
                 firstName: document.getElementById("firstName").value.trim(),
                 lastName: document.getElementById("lastName").value.trim(),
@@ -131,9 +172,9 @@ function setupApplicationForm() {
                 address: document.getElementById("address").value.trim(),
                 courseId: document.getElementById("courseId").value,
                 schedule: schedule,
+                profilePicturePath: profilePicturePath,
             };
 
-            const applicationNumber = "APP" + Date.now();
             initializeApplicationPayment(applicationNumber, applicationData);
         } catch (error) {
             console.error("Application error:", error);
@@ -148,8 +189,7 @@ function setupApplicationForm() {
 function initializeApplicationPayment(applicationNumber, applicationData) {
     const handler = PaystackPop.setup({
         key: "pk_live_661e479efe8cccc078d6e6c078a5b6e0dc963079",
-        email: applicationData.email, 
-        
+        email: applicationData.email,
         amount: 10000, // ₦100 in kobo
         currency: "NGN",
         ref: generateReference("APP"),
@@ -164,8 +204,7 @@ function initializeApplicationPayment(applicationNumber, applicationData) {
             address: applicationData.address,
             course_id: applicationData.courseId,
             schedule: applicationData.schedule,
-            profile_picture: applicationData.profilePicture,
-
+            profile_picture_path: applicationData.profilePicturePath,
         },
         callback: (response) => {
             verifyApplicationPayment(response.reference, applicationNumber);
@@ -189,7 +228,7 @@ async function verifyApplicationPayment(reference, applicationNumber) {
         const response = await fetch("/api/payment/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reference, paymentType: "Application" }),
+            body: JSON.stringify({ reference, paymentType: "Application", applicationNumber }),
         });
 
         const result = await response.json();
@@ -205,7 +244,7 @@ async function verifyApplicationPayment(reference, applicationNumber) {
         }
     } catch (error) {
         console.error("Payment verification error:", error);
-        showMessage("Payment verification failed. Please contact support.", "danger");
+        showMessage("Payment verification failed, email address already exist. Please contact support", "danger");
     }
 }
 

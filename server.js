@@ -12,7 +12,10 @@ const PDFDocument = require('pdfkit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const PAYSTACK_SECRET_KEY = 'sk_live_b04d777ada9b06c828dc4084969106de9d8044a3'; // Replace with your actual Paystack secret key
+const PAYSTACK_SECRET_KEY = 'sk_live_b04d777ada9b06c828dc4084969106de9d8044a3';
+
+// Temporary storage for pending applications
+const pendingApplications = {};
 
 // Middleware
 app.use(express.json());
@@ -30,10 +33,17 @@ app.use(express.static(__dirname, {
   }
 }));
 
-// File upload configuration
+// Session configuration
+app.use(session({
+  secret: 'your-secret-key', // Replace with a secure secret
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = "public/uploads/";
+    const uploadPath = "uploads/";
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -48,20 +58,49 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|zip/;
+    if (!file || !file.originalname) {
+      return cb(new Error("No file uploaded or file name missing"));
+    }
+
+    const allowedTypes = /jpeg|jpg|png|jfif|pdf|doc|docx|zip/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error("Invalid file type"));
+      cb(
+        new Error(
+          "Invalid file type. Only JPG, JPEG, PNG, JFIF, PDF, DOC, DOCX, or ZIP are allowed."
+        )
+      );
     }
   },
 });
+
+// Utility function for Paystack payment verification
+async function verifyPaystackPayment(reference) {
+  try {
+    const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: {
+        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+      },
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error("Paystack verification error:", error);
+    return null;
+  }
+}
+// Utility function to generate admission number
+function generateAdmissionNumber(abbreviation, certType) {
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const year = new Date().getFullYear();
+  return `${abbreviation}/${year}/${certType === 'Certificate' ? 'CERT' : 'DIP'}/${randomNum}`;
+}
 
 // Routes
 
@@ -111,6 +150,69 @@ app.get("/admin/dashboard", (req, res) => {
 
 // API Routes
 
+// Handle application form submission
+app.post("/api/student/apply", upload.single("profilePicture"), (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    gender,
+    dateOfBirth,
+    address,
+    courseId,
+    schedule,
+  } = req.body;
+
+  // Validate required fields
+  if (!firstName || !lastName || !email || !phone || !gender || !dateOfBirth || !address || !courseId || !schedule) {
+    return res.status(400).json({ success: false, error: "All fields are required" });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: "Profile picture is required" });
+  }
+
+  // Validate courseId
+  const courseCheckQuery = `SELECT id FROM courses WHERE id = ? LIMIT 1`;
+  db.query(courseCheckQuery, [courseId], (err, courseResults) => {
+    if (err) {
+      console.error("Error checking course:", err);
+      return res.status(500).json({ success: false, error: "Database error: " + err.message });
+    }
+
+    if (courseResults.length === 0) {
+      return res.status(400).json({ success: false, error: `Invalid course ID: ${courseId}` });
+    }
+
+    // Generate application number
+    const applicationNumber = "APP" + Date.now();
+
+    // Store profile picture path
+    const profilePicturePath = req.file ? req.file.path : null;
+
+    // Store application data temporarily
+    pendingApplications[applicationNumber] = {
+      firstName,
+      lastName,
+      email,
+      phone,
+      gender,
+      dateOfBirth,
+      address,
+      courseId,
+      schedule,
+      profilePicturePath,
+    };
+
+    res.json({
+      success: true,
+      applicationNumber,
+      profilePicturePath,
+    });
+  });
+});
+
 // Get all courses
 app.get("/api/courses", (req, res) => {
   const query = "SELECT * FROM courses ORDER BY name";
@@ -122,35 +224,117 @@ app.get("/api/courses", (req, res) => {
     res.json(results);
   });
 });
+// Verify application or admission
+// Verify application or admission
+app.get("/api/student/verify-application/:identifier", (req, res) => {
+  const { identifier } = req.params;
+  const { type } = req.query;
 
-// Verify application
-app.get("/api/student/verify-application/:applicationNumber", (req, res) => {
-  const { applicationNumber } = req.params;
+  if (!type || !['application', 'admission'].includes(type)) {
+    return res.status(400).json({ success: false, error: "Invalid type parameter. Must be 'application' or 'admission'" });
+  }
 
-  const query = `SELECT s.*, c.name as course_name 
-                 FROM students s 
-                 JOIN courses c ON s.course_id = c.id 
-                 WHERE s.application_number = ? AND s.status = 'Applied'`;
+  // Decode URL-encoded identifier to handle slashes (e.g., CYB%2F2025%2FDIP%2F181 -> CYB/2025/DIP/181)
+  const decodedIdentifier = decodeURIComponent(identifier);
 
-  db.query(query, [applicationNumber], (err, results) => {
+  // Validate admission number format for type=admission
+  if (type === "admission") {
+    const admissionNumberRegex = /^[A-Z]{2,5}\/[0-9]{4}\/(CERT|DIP)\/[0-9]{3}$/;
+    if (!admissionNumberRegex.test(decodedIdentifier)) {
+      return res.status(400).json({ success: false, error: "Invalid admission number format. Expected format: CYB/2025/DIP/181" });
+    }
+  }
+
+  let query;
+  let params = [decodedIdentifier];
+
+  if (type === "application") {
+    query = `
+      SELECT s.*, c.name as course_name, c.registration_fee, c.duration, 
+             c.certification_type, c.schedule, c.abbreviation
+      FROM students s 
+      JOIN courses c ON s.course_id = c.id 
+      WHERE s.application_number = ? AND s.status IN ('Applied', 'Registered')
+    `;
+  } else {
+    query = `
+      SELECT s.*, c.name as course_name, c.registration_fee, c.duration, 
+             c.certification_type, c.schedule, c.abbreviation
+      FROM students s 
+      JOIN courses c ON s.course_id = c.id 
+      WHERE s.admission_number = ? AND s.status IN ('Registered', 'Active')
+    `;
+  }
+
+  db.query(query, params, (err, results) => {
     if (err) {
-      console.error("Error verifying application:", {
-        error: err.message,
-        code: err.code,
-        sqlMessage: err.sqlMessage,
-        sqlState: err.sqlState,
-        stack: err.stack
-      });
-      return res.status(500).json({ error: "Database error: " + err.message });
+      console.error("Error verifying application/admission:", err);
+      return res.status(500).json({ success: false, error: "Database error: " + err.message });
     }
-
     if (results.length === 0) {
-      return res.status(404).json({ error: "Application not found or already processed" });
+      return res.status(404).json({ success: false, error: `No ${type} found for identifier: ${decodedIdentifier}` });
     }
 
-    res.json({
-      success: true,
-      student: results[0],
+    const student = results[0];
+    const regFee = student.registration_fee;
+
+    const paymentQuery = `
+      SELECT SUM(amount) as total_paid, MAX(installment_number) as max_installment,
+             MAX(installment_type) as latest_installment_type
+      FROM payments 
+      WHERE student_id = ? AND payment_type = 'Registration'
+    `;
+    db.query(paymentQuery, [student.id], (err, payRes) => {
+      if (err) {
+        console.error("Error checking payments:", err);
+        return res.status(500).json({ success: false, error: "Database error: " + err.message });
+      }
+
+      const totalPaid = payRes[0].total_paid || 0;
+      const maxInstallment = payRes[0].max_installment || 0;
+      const latestInstallmentType = payRes[0].latest_installment_type || null;
+
+      let paymentStatus = "Pending";
+      let paymentOptions = [];
+      let installmentLabel = "";
+      let nextStep = "payRegistration";
+
+      if (totalPaid === 0 || (totalPaid > 0 && totalPaid < regFee)) {
+        paymentStatus = totalPaid === 0 ? (student.admission_number ? "Partial" : "Pending") : "Partial";
+        paymentOptions = totalPaid === 0 && !student.admission_number ? ["Full", "Installment"] : ["Installment"];
+        installmentLabel = "Second Installment";
+        nextStep = student.password_hash ? "paySecondInstallment" : "setupSecurity";
+      } else if (totalPaid >= regFee) {
+        paymentStatus = "Completed";
+        paymentOptions = [];
+        nextStep = student.password_hash ? "downloadReceipt" : "setupSecurity";
+      }
+
+      res.json({
+        success: true,
+        student: {
+          id: student.id,
+          first_name: student.first_name,
+          last_name: student.last_name,
+          email: student.email,
+          application_number: student.application_number,
+          admission_number: student.admission_number,
+          course_name: student.course_name,
+          duration: student.duration,
+          certification_type: student.certification_type,
+          registration_fee: regFee,
+          schedule: student.schedule,
+          abbreviation: student.abbreviation,
+          totalPaid,
+          installmentNumber: maxInstallment,
+          installmentType: latestInstallmentType,
+          paymentStatus,
+          paymentOptions,
+          installmentLabel,
+          nextStep,
+          hasPassword: !!student.password_hash
+        }
+      });
     });
   });
 });
@@ -168,14 +352,14 @@ app.post("/api/student/setup-security", async (req, res) => {
     db.query(query, [hashedPassword, securityQuestion, securityAnswer, studentId], (err, result) => {
       if (err) {
         console.error("Error setting up security:", err);
-        return res.status(500).json({ error: "Database error" });
+        return res.status(500).json({ success: false, error: "Database error: " + err.message });
       }
 
       res.json({ success: true });
     });
   } catch (error) {
     console.error("Error hashing password:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ success: false, error: "Server error: " + error.message });
   }
 });
 
@@ -192,258 +376,171 @@ app.post(
     const { studentId } = req.body;
 
     try {
-      // Get student and course info for admission number generation
-      const studentQuery = `SELECT s.*, c.abbreviation, c.certification_type 
-                          FROM students s 
-                          JOIN courses c ON s.course_id = c.id 
-                          WHERE s.id = ?`;
-
+      const studentQuery = `
+        SELECT s.*, c.abbreviation, c.certification_type, c.registration_fee 
+        FROM students s 
+        JOIN courses c ON s.course_id = c.id 
+        WHERE s.id = ?`;
+      
       db.query(studentQuery, [studentId], (err, studentResults) => {
         if (err || studentResults.length === 0) {
-          return res.status(500).json({ error: "Student not found" });
+          console.error("Error fetching student:", err);
+          return res.status(500).json({ success: false, error: "Student not found" });
         }
 
         const student = studentResults[0];
-        const admissionNumber = generateAdmissionNumber(
-          student.abbreviation,
-          student.certification_type === "Certificate" ? "CERT" : "DIP",
-        );
+        const registrationFee = student.registration_fee;
 
-        // Update student with admission number and status
-        const updateQuery = `UPDATE students 
-                           SET admission_number = ?, status = 'Registered', highest_qualification = ?
-                           WHERE id = ?`;
-
-        const highestQualPath = req.files.highestQualification ? req.files.highestQualification[0].path : null;
-
-        db.query(updateQuery, [admissionNumber, highestQualPath, studentId], (err, result) => {
+        const paymentQuery = `
+          SELECT SUM(amount) as total_paid, MAX(installment_type) as latest_installment_type
+          FROM payments 
+          WHERE student_id = ? AND payment_type = 'Registration'`;
+        
+        db.query(paymentQuery, [studentId], (err, paymentResults) => {
           if (err) {
-            console.error("Error completing registration:", err);
-            return res.status(500).json({ error: "Database error" });
+            console.error("Error checking payments:", err);
+            return res.status(500).json({ success: false, error: "Database error: " + err.message });
           }
 
-          // Save additional qualifications
-          const qualPromises = [];
-          for (let i = 0; i < 3; i++) {
-            const qualName = req.body[`additionalQualName_${i}`];
-            const qualFile = req.files[`additionalQualFile_${i}`];
+          const totalPaid = paymentResults[0].total_paid || 0;
 
-            if (qualName && qualFile) {
-              const qualQuery = `INSERT INTO qualifications (student_id, qualification_name, file_path, is_highest) 
-                               VALUES (?, ?, ?, false)`;
-              qualPromises.push(
-                new Promise((resolve, reject) => {
-                  db.query(qualQuery, [studentId, qualName, qualFile[0].path], (err, result) => {
-                    if (err) reject(err);
-                    else resolve(result);
-                  });
-                }),
-              );
-            }
-          }
-
-          Promise.all(qualPromises)
-            .then(() => {
-              res.json({
-                success: true,
-                admissionNumber: admissionNumber,
-              });
-            })
-            .catch((error) => {
-              console.error("Error saving qualifications:", error);
-              res.json({
-                success: true,
-                admissionNumber: admissionNumber,
-                warning: "Registration complete but some qualifications failed to save",
-              });
+          // ❌ Block only if NO payment at all
+          if (totalPaid === 0) {
+            return res.status(400).json({ 
+              success: false, 
+              error: "No registration payment made yet",
+              nextStep: 'payRegistration'
             });
+          }
+
+          // Proceed even if first installment only
+          let admissionNumber = student.admission_number;
+          if (!admissionNumber) {
+            admissionNumber = generateAdmissionNumber(
+              student.abbreviation,
+              student.certification_type === "Certificate" ? "CERT" : "DIP"
+            );
+            db.query(`UPDATE students SET admission_number=? WHERE id=?`, [admissionNumber, studentId]);
+          }
+
+          const updateQuery = `
+            UPDATE students 
+            SET admission_number = ?, status = 'Registered', highest_qualification = ?
+            WHERE id = ?`;
+
+          const highestQualPath = req.files.highestQualification ? req.files.highestQualification[0].path : null;
+
+          db.query(updateQuery, [admissionNumber, highestQualPath, studentId], (err, result) => {
+            if (err) {
+              console.error("Error completing registration:", err);
+              return res.status(500).json({ success: false, error: "Database error: " + err.message });
+            }
+
+            // Save additional qualifications if provided
+            const qualPromises = [];
+            for (let i = 0; i < 3; i++) {
+              const qualName = req.body[`additionalQualName_${i}`];
+              const qualFile = req.files[`additionalQualFile_${i}`];
+
+              if (qualName && qualFile) {
+                const qualQuery = `
+                  INSERT INTO qualifications (student_id, qualification_name, file_path, is_highest) 
+                  VALUES (?, ?, ?, false)`;
+                qualPromises.push(
+                  new Promise((resolve, reject) => {
+                    db.query(qualQuery, [studentId, qualName, qualFile[0].path], (err, result) => {
+                      if (err) reject(err);
+                      else resolve(result);
+                    });
+                  })
+                );
+              }
+            }
+
+            Promise.all(qualPromises)
+              .then(() => {
+                res.json({
+                  success: true,
+                  admissionNumber,
+                  balance: Math.max(registrationFee - totalPaid, 0), // amount remaining
+                  nextStep: 'downloadReceipt'
+                });
+              })
+              .catch((error) => {
+                console.error("Error saving qualifications:", error);
+                res.json({
+                  success: true,
+                  admissionNumber,
+                  balance: Math.max(registrationFee - totalPaid, 0),
+                  warning: "Registration complete but some qualifications failed to save",
+                  nextStep: 'downloadReceipt'
+                });
+              });
+          });
         });
       });
     } catch (error) {
       console.error("Error completing registration:", error);
-      res.status(500).json({ error: "Server error" });
+      res.status(500).json({ success: false, error: "Server error: " + error.message });
     }
-  },
+  }
 );
 
-// Student login
-app.post("/api/student/login", async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    // Check if it's application number (no password required) or admission number
-    let query;
-    if (!password) {
-      // Application number login
-      query = `SELECT * FROM students WHERE application_number = ? AND status = 'Applied'`;
-    } else {
-      // Admission number login
-      query = `SELECT * FROM students WHERE admission_number = ? AND status IN ('Registered', 'Active')`;
-    }
-
-    db.query(query, [username], async (err, results) => {
-      if (err) {
-        console.error("Error during login:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      if (results.length === 0) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      const student = results[0];
-
-      // If password provided, verify it
-      if (password && student.password_hash) {
-        const isValidPassword = await bcrypt.compare(password, student.password_hash);
-        if (!isValidPassword) {
-          return res.status(401).json({ error: "Invalid credentials" });
-        }
-      }
-
-      // Create session
-      req.session.studentId = student.id;
-      req.session.studentType = student.status === "Applied" ? "applicant" : "registered";
-
-      res.json({
-        success: true,
-        student: {
-          id: student.id,
-          name: `${student.first_name} ${student.last_name}`,
-          status: student.status,
-          applicationNumber: student.application_number,
-          admissionNumber: student.admission_number,
-        },
-      });
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Get security question
-app.get("/api/student/security-question/:username", (req, res) => {
-  const { username } = req.params;
-
-  const query = `SELECT security_question FROM students WHERE admission_number = ?`;
-
-  db.query(query, [username], (err, results) => {
-    if (err) {
-      console.error("Error getting security question:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Student not found" });
-    }
-
-    res.json({
-      success: true,
-      securityQuestion: results[0].security_question,
-    });
-  });
-});
-
-// Reset password
-app.post("/api/student/reset-password", async (req, res) => {
-  const { username, securityAnswer, newPassword } = req.body;
-
-  try {
-    // Verify security answer
-    const query = `SELECT id, security_answer FROM students WHERE admission_number = ?`;
-
-    db.query(query, [username], async (err, results) => {
-      if (err) {
-        console.error("Error during password reset:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      if (results.length === 0) {
-        return res.status(404).json({ error: "Student not found" });
-      }
-
-      const student = results[0];
-
-      if (student.security_answer !== securityAnswer) {
-        return res.status(401).json({ error: "Incorrect security answer" });
-      }
-
-      // Hash new password and update
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      const updateQuery = `UPDATE students SET password_hash = ? WHERE id = ?`;
-
-      db.query(updateQuery, [hashedPassword, student.id], (err, result) => {
-        if (err) {
-          console.error("Error updating password:", err);
-          return res.status(500).json({ error: "Database error" });
-        }
-
-        res.json({ success: true });
-      });
-    });
-  } catch (error) {
-    console.error("Password reset error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
+// Payment verification
 // Payment verification
 app.post("/api/payment/verify", async (req, res) => {
   try {
-    const { reference, paymentType, installmentType, studentId, applicationNumber } = req.body;
+    const { reference, paymentType, studentId, applicationNumber, installmentType: inputInstallmentType } = req.body;
 
-    // Verify Paystack payment
     const transaction = await verifyPaystackPayment(reference);
-
     if (!transaction || transaction.status !== "success") {
       return res.status(400).json({ success: false, error: "Payment verification failed" });
     }
 
     const amount = transaction.amount / 100; // Paystack returns in kobo
-    const metadata = transaction.metadata || {};
 
+    /* ---------------- APPLICATION PAYMENT ---------------- */
     if (paymentType === "Application") {
       if (!applicationNumber) {
         return res.status(400).json({ success: false, error: "Application number is required" });
       }
 
-      if (!metadata.course_id) {
-        return res.status(400).json({ success: false, error: "Missing course_id in metadata" });
+      const applicationData = pendingApplications[applicationNumber];
+      if (!applicationData) {
+        return res.status(400).json({ success: false, error: "Application data not found" });
       }
 
-      // Validate course_id exists
       const courseCheckQuery = `SELECT id FROM courses WHERE id = ? LIMIT 1`;
-      db.query(courseCheckQuery, [metadata.course_id], (err, courseResults) => {
+      db.query(courseCheckQuery, [applicationData.courseId], (err, courseResults) => {
         if (err) {
           console.error("Error checking course:", err);
           return res.status(500).json({ success: false, error: "Database error: " + err.message });
         }
 
         if (courseResults.length === 0) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid course ID: ${metadata.course_id}. Please select a valid course.`,
-          });
+          return res.status(400).json({ success: false, error: `Invalid course ID: ${applicationData.courseId}` });
         }
 
-        // Insert into students table
-        const query = `INSERT INTO students (application_number, first_name, last_name, email, phone, gender, date_of_birth, address, course_id, schedule, profile_picture, status, reference_number, amount, payment_date)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Applied', ?, ?, NOW())`;
+        const query = `INSERT INTO students (
+          application_number, first_name, last_name, email, phone, gender, 
+          date_of_birth, address, course_id, schedule, profile_picture, 
+          status, reference_number, amount, payment_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Applied', ?, ?, NOW())`;
+
         db.query(
           query,
           [
             applicationNumber,
-            metadata.first_name,
-            metadata.last_name,
-            metadata.email,
-            metadata.phone,
-            metadata.gender,
-            metadata.date_of_birth,
-            metadata.address,
-            metadata.course_id,
-            metadata.schedule,
-            metadata.profile_picture || null,
+            applicationData.firstName,
+            applicationData.lastName,
+            applicationData.email,
+            applicationData.phone,
+            applicationData.gender,
+            applicationData.dateOfBirth,
+            applicationData.address,
+            applicationData.courseId,
+            applicationData.schedule,
+            applicationData.profilePicturePath,
             reference,
             amount,
           ],
@@ -451,138 +548,423 @@ app.post("/api/payment/verify", async (req, res) => {
             if (err) {
               console.error("Error creating application:", err);
               if (err.code === "ER_DUP_ENTRY") {
-                return res.status(400).json({ success: false, error: "Email or application number already exists" });
-              }
-              if (err.code === "ER_NO_REFERENCED_ROW_2") {
-                return res.status(400).json({
-                  success: false,
-                  error: `Course ID ${metadata.course_id} does not exist in the courses table`,
-                });
+                return res.status(400).json({ success: false, error: "Email already exists" });
               }
               return res.status(500).json({ success: false, error: `Database error: ${err.message}` });
             }
 
+            delete pendingApplications[applicationNumber];
             res.json({ success: true, applicationNumber });
           }
         );
       });
-    } else {
-      // Handle other payment types
-      const installmentNumber = installmentType === "full" ? 1 : 1;
-      const totalInstallments = installmentType === "full" ? 1 : 2;
 
+    /* ---------------- REGISTRATION PAYMENT ---------------- */
+    } else if (paymentType === "Registration") {
       if (!studentId) {
-        return res.status(400).json({ success: false, error: "Missing studentId for payment" });
+        return res.status(400).json({ success: false, error: "Missing studentId for registration payment" });
       }
 
-      const paymentQuery = `
-        INSERT INTO payments (
-          student_id, payment_type, amount, reference_number,
-          installment_number, total_installments, status
-        ) VALUES (?, ?, ?, ?, ?, ?, 'Completed')
-      `;
+      // 1. Get student and course details
+      const studentCheckQuery = `SELECT s.*, c.name as course_name, c.registration_fee, c.duration, 
+                               c.certification_type, c.schedule, c.abbreviation
+                               FROM students s 
+                               JOIN courses c ON s.course_id = c.id 
+                               WHERE s.id = ? LIMIT 1`;
+      db.query(studentCheckQuery, [studentId], (err, studentResults) => {
+        if (err || studentResults.length === 0) {
+          console.error("Error checking student:", err);
+          return res.status(400).json({ success: false, error: "Student not found or invalid" });
+        }
 
-      db.query(
-        paymentQuery,
-        [studentId, paymentType, amount, reference, installmentNumber, totalInstallments],
-        (err, result) => {
+        let student = studentResults[0];
+        const regFee = student.registration_fee;
+
+        // 2. Get existing payments
+        const sumQuery = `SELECT SUM(amount) as total_paid, MAX(installment_number) as max_installment, 
+                         MAX(installment_type) as latest_installment_type
+                         FROM payments WHERE student_id = ? AND payment_type = 'Registration'`;
+        db.query(sumQuery, [studentId], (err, sumResults) => {
           if (err) {
-            console.error("Error recording payment:", err);
-            return res.status(500).json({ success: false, error: "Payment recording failed: " + err.message });
+            console.error("Error checking payments:", err);
+            return res.status(500).json({ success: false, error: "Database error: " + err.message });
           }
 
-          res.json({ success: true });
-        }
-      );
+          const totalPaidSoFar = sumResults[0].total_paid || 0;
+          const maxInstallment = sumResults[0].max_installment || 0;
+          const latestInstallmentType = sumResults[0].latest_installment_type || null;
+          const newTotal = totalPaidSoFar + amount;
+
+          // 3. Determine installment details
+          let installmentType = inputInstallmentType || (amount >= regFee ? "full" : (totalPaidSoFar > 0 ? "second" : "first"));
+          let dbInstallmentType = installmentType === "full" ? "full" : "half";
+          let installmentNumber = totalPaidSoFar > 0 ? 2 : 1;
+          let totalInstallments = installmentType === "full" ? 1 : 2;
+          let status = newTotal >= regFee ? "Completed" : "Pending";
+
+          // 4. Generate admission number if missing (on first or full payment)
+          let admissionNumber = student.admission_number;
+          if (!admissionNumber && (installmentType === "first" || installmentType === "full")) {
+            admissionNumber = generateAdmissionNumber(
+              student.abbreviation,
+              student.certification_type === "Certificate" ? "CERT" : "DIP"
+            );
+            db.query(`UPDATE students SET admission_number = ? WHERE id = ?`, [admissionNumber, studentId], (err) => {
+              if (err) {
+                console.error("Error generating admission number:", err);
+              }
+            });
+            student.admission_number = admissionNumber;
+          }
+
+          // 5. Update payments table with installment_type
+          if (installmentType === "second") {
+            db.query(
+              `UPDATE payments SET installment_type = 'full' WHERE student_id = ? AND payment_type = 'Registration'`,
+              [studentId],
+              (err) => {
+                if (err) {
+                  console.error("Error updating payment installment_type:", err);
+                }
+              }
+            );
+          }
+
+          // 6. Record payment
+          const paymentQuery = `
+            INSERT INTO payments (
+              student_id, payment_type, amount, reference_number,
+              installment_number, total_installments, status, paystack_reference, installment_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+          db.query(
+            paymentQuery,
+            [studentId, paymentType, amount, reference, installmentNumber, totalInstallments, status, reference, dbInstallmentType],
+            (err) => {
+              if (err) {
+                console.error("Error recording payment:", err);
+                return res.status(500).json({ success: false, error: "Payment recording failed: " + err.message });
+              }
+
+              // 7. Update student status if fully paid
+              if (status === "Completed" && student.status !== "Registered") {
+                db.query(`UPDATE students SET status = 'Registered' WHERE id = ?`, [studentId], (err) => {
+                  if (err) {
+                    console.error("Error updating student status:", err);
+                  }
+                  student.status = "Registered";
+                });
+              }
+
+              // 8. Re-query payments for latest totals
+              const paymentQuery2 = `SELECT SUM(amount) as total_paid, MAX(installment_number) as max_installment, 
+                                   MAX(installment_type) as latest_installment_type
+                                   FROM payments WHERE student_id = ? AND payment_type = 'Registration'`;
+              db.query(paymentQuery2, [studentId], (err, payRes) => {
+                if (err) {
+                  console.error("Error re-checking payments:", err);
+                  return res.status(500).json({ success: false, error: "Database error: " + err.message });
+                }
+
+                const totalPaid = payRes[0].total_paid || 0;
+                const maxInstallment = payRes[0].max_installment || 0;
+                const latestInstallmentType = payRes[0].latest_installment_type || null;
+
+                // 9. Compute derived fields
+                let paymentStatus = "Pending";
+                let paymentOptions = [];
+                let installmentLabel = "";
+                let nextStep = "payRegistration";
+
+                if (totalPaid === 0 || (totalPaid > 0 && totalPaid < regFee)) {
+                  paymentStatus = totalPaid === 0 ? (student.admission_number ? "Partial" : "Pending") : "Partial";
+                  paymentOptions = totalPaid === 0 && !student.admission_number ? ["Full", "Installment"] : ["Installment"];
+                  installmentLabel = "Second Installment";
+                  nextStep = student.password_hash ? "paySecondInstallment" : "setupSecurity";
+                } else if (totalPaid >= regFee) {
+                  paymentStatus = "Completed";
+                  paymentOptions = [];
+                  nextStep = student.password_hash ? "downloadReceipt" : "setupSecurity";
+                }
+
+                // 10. Return consistent student object
+                res.json({
+                  success: true,
+                  student: {
+                    id: student.id,
+                    first_name: student.first_name,
+                    last_name: student.last_name,
+                    email: student.email,
+                    application_number: student.application_number,
+                    admission_number: student.admission_number,
+                    course_name: student.course_name,
+                    duration: student.duration,
+                    certification_type: student.certification_type,
+                    registration_fee: regFee,
+                    schedule: student.schedule,
+                    abbreviation: student.abbreviation,
+                    totalPaid,
+                    installmentNumber: maxInstallment,
+                    installmentType: latestInstallmentType,
+                    paymentStatus,
+                    paymentOptions,
+                    installmentLabel,
+                    nextStep,
+                    hasPassword: !!student.password_hash
+                  }
+                });
+              });
+            }
+          );
+        });
+      });
+    } else {
+      return res.status(400).json({ success: false, error: "Invalid payment type" });
     }
   } catch (error) {
     console.error("Payment verification error:", error);
     res.status(500).json({ success: false, error: "Internal server error: " + error.message });
   }
-});
-
-
+}); 
 // Download receipt
 app.get("/api/receipt/download", (req, res) => {
-  const { type, ref, appNum } = req.query;
+  const { type, ref, appNum, admissionNum } = req.query;
 
-  if (type !== "application") {
-    return res.status(400).json({ error: "Invalid type. Only 'application' supported." });
+  if (!type || !['application', 'registration'].includes(type)) {
+    return res.status(400).json({ error: "Invalid type. Must be 'application' or 'registration'." });
+  }
+
+  if (type === "application") {
+    if (!appNum || !ref) {
+      return res.status(400).json({ error: "Application number and reference required for application receipt." });
+    }
+
+    const query = `
+      SELECT s.*, c.name AS course_name, c.schedule 
+      FROM students s 
+      LEFT JOIN courses c ON s.course_id = c.id 
+      WHERE s.application_number = ? AND s.reference_number = ?
+    `;
+
+    db.query(query, [appNum, ref], (err, results) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ error: "Database query failed." });
+      }
+      if (!results || results.length === 0) {
+        return res.status(404).json({ error: "Application not found." });
+      }
+
+      const student = results[0];
+      const doc = new PDFDocument({ margin: 50 });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="application_form_receipt_${appNum}.pdf"`);
+      doc.pipe(res);
+
+      const logoPath = path.join(__dirname, "logo.png");
+      try { doc.image(logoPath, 50, 30, { width: 100 }); } catch (e) {}
+
+      doc.moveDown(5);
+      doc.fontSize(22).text("UltraTech Global Solution LTD", { align: "center" });
+      doc.moveDown(0.5);
+      doc.fontSize(12).text("Gwammaja Housing Estate, Opp. Orthopedic Hospital, Dala", { align: "center" });
+      doc.text("Email: info@ultratechglobalsolution.com.ng | Phone: 08024606199, 08167030902", { align: "center" });
+      doc.moveDown(2);
+
+      doc.fontSize(16).text("Application Form", { align: "center" });
+      doc.moveDown(2);
+
+      doc.fontSize(12).text(`Application Number: ${student.application_number}`);
+      doc.text(`Name: ${student.first_name} ${student.last_name}`);
+      doc.text(`Email: ${student.email}`);
+      doc.text(`Phone: ${student.phone}`);
+      doc.text(`Gender: ${student.gender}`);
+      doc.text(`Date of Birth: ${student.date_of_birth}`);
+      doc.text(`Address: ${student.address}`);
+      doc.text(`Course: ${student.course_name || "Unknown"}`);
+      doc.text(`Schedule: ${student.schedule}`);
+      doc.text(`Profile Picture: ${student.profile_picture || "Not uploaded"}`);
+      doc.moveDown(2);
+
+      doc.fontSize(16).text("Application Payment Receipt", { align: "center" });
+      doc.moveDown(2);
+
+      const formattedAmount = new Intl.NumberFormat("en-NG").format(student.amount);
+      doc.fontSize(12).text(`Payment Type: Application Fee`);
+      doc.text(`Payment Amount: ₦${formattedAmount}`);
+      doc.text(`Reference: ${student.reference_number}`);
+      doc.text(`Payment Date: ${student.payment_date}`);
+      doc.moveDown(2);
+
+      doc.fontSize(10).text("This form + receipt is system-generated and valid without signature.", { align: "center" });
+
+      doc.end();
+    });
+  } else if (type === "registration") {
+    if (!admissionNum) {
+      return res.status(400).json({ error: "Admission number required for registration receipt." });
+    }
+
+    const query = `
+      SELECT s.*, c.name AS course_name, c.schedule, c.certification_type,
+             p.amount, p.payment_date, p.installment_number, p.total_installments, p.status, p.reference_number, p.installment_type
+      FROM students s 
+      JOIN courses c ON s.course_id = c.id 
+      JOIN payments p ON s.id = p.student_id 
+      WHERE s.admission_number = ? AND p.payment_type = 'Registration'
+      ORDER BY p.installment_number ASC
+    `;
+
+    db.query(query, [admissionNum], (err, results) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ error: "Database query failed." });
+      }
+      if (!results || results.length === 0) {
+        return res.status(404).json({ error: "Registration payments not found." });
+      }
+
+      const student = results[0];
+      const totalPaid = results.reduce((sum, p) => sum + Number(p.amount), 0);
+      if (totalPaid < student.registration_fee) {
+        return res.status(400).json({ error: "Registration payment incomplete. Receipt available only after full payment." });
+      }
+
+      const doc = new PDFDocument({ margin: 50 });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="registration_receipt_${admissionNum}.pdf"`);
+      doc.pipe(res);
+
+      const logoPath = path.join(__dirname, "logo.png");
+      try { doc.image(logoPath, 50, 30, { width: 100 }); } catch (e) {}
+
+      doc.moveDown(5);
+      doc.fontSize(22).text("UltraTech Global Solution LTD", { align: "center" });
+      doc.moveDown(0.5);
+      doc.fontSize(12).text("Gwammaja Housing Estate, Opp. Orthopedic Hospital, Dala", { align: "center" });
+      doc.text("Email: info@ultratechglobalsolution.com.ng | Phone: 08024606199, 08167030902", { align: "center" });
+      doc.moveDown(2);
+
+      doc.fontSize(16).text("Registration Payment Receipt", { align: "center" });
+      doc.moveDown(2);
+
+      doc.fontSize(12).text(`Admission Number: ${student.admission_number}`);
+      doc.text(`Name: ${student.first_name} ${student.last_name}`);
+      doc.text(`Email: ${student.email}`);
+      doc.text(`Phone: ${student.phone}`);
+      doc.text(`Course: ${student.course_name || "Unknown"}`);
+      doc.text(`Schedule: ${student.schedule}`);
+      doc.moveDown();
+
+      results.forEach(payment => {
+        const formattedAmount = new Intl.NumberFormat("en-NG").format(payment.amount);
+        doc.text(`Installment ${payment.installment_number} of ${payment.total_installments} (${payment.installment_type})`);
+        doc.text(`Amount: ₦${formattedAmount}`);
+        doc.text(`Reference: ${payment.reference_number}`);
+        doc.text(`Payment Date: ${payment.payment_date}`);
+        doc.text(`Status: ${payment.status}`);
+        doc.moveDown();
+      });
+
+      doc.fontSize(10).text("This receipt is system-generated and valid with the director's signature.", { align: "center" });
+      doc.end();
+    });
+  }
+});
+
+// Admission letter
+app.get("/api/admission-letter/download", (req, res) => {
+  const { admissionNum } = req.query;
+
+  if (!admissionNum) {
+    return res.status(400).json({ error: "Admission number is required." });
   }
 
   const query = `
-    SELECT s.*, c.name AS course_name 
+    SELECT s.*, c.name AS course_name, c.schedule, c.certification_type, c.duration
     FROM students s 
-    LEFT JOIN courses c ON s.course_id = c.id 
-    WHERE s.application_number = ? AND s.reference_number = ?
+    JOIN courses c ON s.course_id = c.id 
+    WHERE s.admission_number = ? AND s.status IN ('Registered', 'Active')
   `;
 
-  db.query(query, [appNum, ref], (err, results) => {
+  db.query(query, [admissionNum], (err, results) => {
     if (err) {
       console.error("Database error:", err);
       return res.status(500).json({ error: "Database query failed." });
     }
-
     if (!results || results.length === 0) {
-      return res.status(404).json({ error: "Application not found." });
+      return res.status(404).json({ error: "Student not found." });
     }
 
     const student = results[0];
 
-    // Create PDF
-    const doc = new PDFDocument({ margin: 50 });
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="application_form_${appNum}.pdf"`
-    );
-    doc.pipe(res);
+    const paymentQuery = `
+      SELECT SUM(amount) as total_paid
+      FROM payments 
+      WHERE student_id = ? AND payment_type = 'Registration'
+    `;
+    
+    db.query(paymentQuery, [student.id], (err, paymentResults) => {
+      if (err) {
+        console.error("Error checking payments:", err);
+        return res.status(500).json({ error: "Database error: " + err.message });
+      }
 
-    // Add logo (same folder as server.js)
-    const logoPath = path.join(__dirname, "logo.png");
-    try {
-      doc.image(logoPath, 50, 30, { width: 100 });
-    } catch (e) {
-      console.warn("Logo not found:", e.message);
-    }
-    doc.moveDown(5);
+      const totalPaid = paymentResults[0].total_paid || 0;
+      if (totalPaid === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "No registration payment made yet",
+          nextStep: 'payRegistration'
+        });
+      }
 
-    // Header
-    doc.fontSize(22).text("UltraTech Global Solution LTD", { align: "center" });
-    doc.moveDown(0.5);
-    doc.fontSize(12).text("Gwammaja Housing Estate, Opp. Orthopedic Hospital, Dala", { align: "center" });
-    doc.text("Email: info@ultratechglobalsolution.com.ng | Phone: 08024606199, 08167030902", { align: "center" });
-    doc.moveDown(2);
+      const doc = new PDFDocument({ margin: 50 });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="admission_letter_${admissionNum}.pdf"`);
+      doc.pipe(res);
 
-    // Title
-    doc.fontSize(16).text("Application Form & Payment Receipt", { align: "center" });
-    doc.moveDown(2);
+      const logoPath = path.join(__dirname, "logo.png");
+      try { doc.image(logoPath, 50, 30, { width: 100 }); } catch (e) {}
 
-    // Student info
-    doc.fontSize(12).text(`Application Number: ${student.application_number}`);
-    doc.text(`Name: ${student.first_name} ${student.last_name}`);
-    doc.text(`Email: ${student.email}`);
-    doc.text(`Phone: ${student.phone}`);
-    doc.text(`Gender: ${student.gender}`);
-    doc.text(`Date of Birth: ${student.date_of_birth}`);
-    doc.text(`Address: ${student.address}`);
-    doc.text(`Course: ${student.course_name || "Unknown"}`);
-    doc.text(`Schedule: ${student.schedule}`);
-    doc.moveDown();
+      doc.moveDown(5);
+      doc.fontSize(22).text("UltraTech Global Solution LTD", { align: "center" });
+      doc.moveDown(0.5);
+      doc.fontSize(12).text("Gwammaja Housing Estate, Opp. Orthopedic Hospital, Dala", { align: "center" });
+      doc.text("Email: info@ultratechglobalsolution.com.ng | Phone: 08024606199, 08167030902", { align: "center" });
+      doc.moveDown(2);
 
-    // Payment info
-    const formattedAmount = new Intl.NumberFormat("en-NG").format(student.amount);
-    doc.text(`Payment Amount: ₦${formattedAmount}`);
-    doc.text(`Reference: ${student.reference_number}`);
-    doc.text(`Payment Date: ${student.payment_date}`);
-    doc.moveDown(2);
+      doc.fontSize(16).text("Admission Letter", { align: "center" });
+      doc.moveDown(2);
 
-    doc.fontSize(10).text("This receipt is system-generated and valid without signature.", { align: "center" });
+      doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString()}`, { align: "right" });
+      doc.moveDown();
+      doc.text(`Dear ${student.first_name} ${student.last_name},`);
+      doc.moveDown();
+      doc.text("Congratulations on your admission to UltraTech Global Solution LTD! We are pleased to offer you a place in the following program:");
+      doc.moveDown();
+      doc.text(`Program: ${student.course_name}`);
+      doc.text(`Certification Type: ${student.certification_type}`);
+      doc.text(`Duration: ${student.duration}`);
+      doc.text(`Schedule: ${student.schedule}`);
+      doc.text(`Your Admission Number is : ${student.admission_number}`);
+      doc.text(`Start Date: 20th September 2025`);
+      doc.moveDown();
+      doc.text("We look forward to supporting you in your educational journey.");
+      doc.moveDown();
+      doc.text("Sincerely,");
+      doc.moveDown();
 
-    doc.end();
+      const signaturePath = path.join(__dirname, "signature.jfif");
+      try { doc.image(signaturePath, 50, doc.y, { width: 100 }); } catch (e) {}
+      doc.text("Junaidu Muhammad, Director", 50, doc.y + 10);
+
+      doc.end();
+    });
   });
 });
-// Student dashboard API endpoints
 
 // Student profile endpoint
 app.get("/api/student/profile", (req, res) => {
@@ -606,8 +988,8 @@ app.get("/api/student/profile", (req, res) => {
     }
 
     const student = results[0];
-    delete student.password_hash; // Don't send password hash
-    delete student.security_answer; // Don't send security answer
+    delete student.password_hash;
+    delete student.security_answer;
 
     res.json({ success: true, student });
   });
@@ -621,7 +1003,6 @@ app.get("/api/student-overview", (req, res) => {
 
   const studentId = req.session.studentId;
 
-  // Get overview statistics
   const statsQuery = `
     SELECT 
       (SELECT COUNT(*) FROM assignments a 
@@ -641,9 +1022,8 @@ app.get("/api/student-overview", (req, res) => {
     }
 
     const stats = statsResults[0];
-    stats.overallGrade = 0; // Will be calculated based on actual results
+    stats.overallGrade = 0;
 
-    // Get recent activities
     const activitiesQuery = `
       SELECT 'assignment' as type, a.title, 'New assignment posted' as description, a.created_at
       FROM assignments a 
@@ -687,26 +1067,40 @@ app.get("/api/student/payments", (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
-    // Check for outstanding payments
     const outstanding = [];
 
-    // Check if registration payment is complete
-    const registrationPayments = payments.filter((p) => p.payment_type === "Registration");
-    const totalRegistrationPaid = registrationPayments.reduce((sum, p) => sum + Number.parseFloat(p.amount), 0);
+    const feeQuery = `
+      SELECT c.registration_fee 
+      FROM students s 
+      JOIN courses c ON s.course_id = c.id 
+      WHERE s.id = ?
+    `;
 
-    if (totalRegistrationPaid < 500) {
-      outstanding.push({
-        type: "Registration",
-        amount: 500 - totalRegistrationPaid,
-        description: "Complete your registration payment",
-        dueDate: null,
+    db.query(feeQuery, [req.session.studentId], (err, feeResults) => {
+      if (err || feeResults.length === 0) {
+        console.error("Error fetching registration fee:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      const registrationFee = feeResults[0].registration_fee;
+
+      const registrationPayments = payments.filter((p) => p.payment_type === "Registration");
+      const totalRegistrationPaid = registrationPayments.reduce((sum, p) => sum + Number.parseFloat(p.amount), 0);
+
+      if (totalRegistrationPaid < registrationFee) {
+        outstanding.push({
+          type: "Registration",
+          amount: registrationFee - totalRegistrationPaid,
+          description: "Complete your registration payment",
+          dueDate: null,
+        });
+      }
+
+      res.json({
+        success: true,
+        payments,
+        outstanding,
       });
-    }
-
-    res.json({
-      success: true,
-      payments,
-      outstanding,
     });
   });
 });
@@ -762,7 +1156,7 @@ app.post("/api/student/submit-assignment", upload.single("file"), (req, res) => 
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const { assignmentId, notes } = req.body;
+  const { assignmentId } = req.body;
   const filePath = req.file ? req.file.path : null;
 
   if (!filePath) {
@@ -811,7 +1205,7 @@ app.get("/api/student/results", (req, res) => {
     res.json({
       success: true,
       results: result,
-      detailed: [], // Will be populated with actual assessment results
+      detailed: [],
     });
   });
 });
@@ -916,8 +1310,6 @@ app.post("/api/student/logout", (req, res) => {
   });
 });
 
-// Staff API endpoints
-
 // Staff signup
 app.post("/api/staff/signup", async (req, res) => {
   const { firstName, lastName, email, phone, department, position, qualifications, password } = req.body;
@@ -980,7 +1372,6 @@ app.post("/api/staff/login", async (req, res) => {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      // Create session
       req.session.staffId = staff.id;
       req.session.userType = "staff";
 
@@ -1032,7 +1423,6 @@ app.get("/api/staff/overview", (req, res) => {
 
   const staffId = req.session.staffId;
 
-  // Get staff department for filtering
   const staffQuery = `SELECT department FROM staff WHERE id = ?`;
 
   db.query(staffQuery, [staffId], (err, staffResults) => {
@@ -1042,7 +1432,6 @@ app.get("/api/staff/overview", (req, res) => {
 
     const department = staffResults[0].department;
 
-    // Get overview statistics
     const statsQuery = `
       SELECT 
         (SELECT COUNT(*) FROM students s 
@@ -1068,7 +1457,6 @@ app.get("/api/staff/overview", (req, res) => {
 
       const stats = statsResults[0];
 
-      // Get recent activities
       const activitiesQuery = `
         SELECT 'assignment' as type, a.title, 'New assignment created' as description, a.created_at
         FROM assignments a 
@@ -1110,7 +1498,6 @@ app.get("/api/staff/students", (req, res) => {
 
   const staffId = req.session.staffId;
 
-  // Get staff department
   const staffQuery = `SELECT department FROM staff WHERE id = ?`;
 
   db.query(staffQuery, [staffId], (err, staffResults) => {
@@ -1202,8 +1589,6 @@ app.post("/api/staff/logout", (req, res) => {
   });
 });
 
-// Admin API endpoints
-
 // Admin login
 app.post("/api/admin/login", async (req, res) => {
   const { username, password, role } = req.body;
@@ -1228,7 +1613,6 @@ app.post("/api/admin/login", async (req, res) => {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      // Create session
       req.session.adminId = admin.id;
       req.session.userType = "admin";
 
@@ -1277,16 +1661,13 @@ app.get("/api/admin/overview", (req, res) => {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  // Get overview statistics
   const statsQuery = `
     SELECT 
       (SELECT COUNT(*) FROM students WHERE status IN ('Registered', 'Active')) as totalStudents,
-      (SELECT COUNT(*) FROM staff WHERE status = 'Active') as activeStaff,
-      (SELECT COALESCE(SUM(amount), 0) FROM payments 
-       WHERE MONTH(payment_date) = MONTH(CURRENT_DATE()) 
-       AND YEAR(payment_date) = YEAR(CURRENT_DATE())) as monthlyRevenue,
-      (SELECT COUNT(*) FROM students WHERE status = 'Applied') + 
-      (SELECT COUNT(*) FROM staff WHERE status = 'Pending') as pendingApprovals
+      (SELECT COUNT(*) FROM staff WHERE status = 'Active') as totalStaff,
+      (SELECT COUNT(*) FROM courses WHERE is_active = 1) as totalCourses,
+      (SELECT COUNT(*) FROM assignments WHERE due_date > NOW()) as activeAssignments,
+      (SELECT COUNT(*) FROM exams WHERE scheduled_date > NOW() AND is_active = 1) as upcomingExams
   `;
 
   db.query(statsQuery, (err, statsResults) => {
@@ -1297,39 +1678,37 @@ app.get("/api/admin/overview", (req, res) => {
 
     const stats = statsResults[0];
 
-    // Get monthly revenue data for chart
-    const revenueQuery = `
-      SELECT MONTH(payment_date) as month, SUM(amount) as total
-      FROM payments 
-      WHERE YEAR(payment_date) = YEAR(CURRENT_DATE())
-      GROUP BY MONTH(payment_date)
-      ORDER BY month
+    const activitiesQuery = `
+      SELECT 'student' as type, CONCAT(s.first_name, ' ', s.last_name) as title, 
+             CONCAT('New student registered: ', c.name) as description, s.created_at
+      FROM students s 
+      JOIN courses c ON s.course_id = c.id
+      WHERE s.status IN ('Registered', 'Active')
+      UNION ALL
+      SELECT 'staff' as type, CONCAT(st.first_name, ' ', st.last_name) as title, 
+             'New staff added' as description, st.created_at
+      FROM staff st
+      WHERE st.status = 'Active'
+      ORDER BY created_at DESC 
+      LIMIT 10
     `;
 
-    db.query(revenueQuery, (err, revenueResults) => {
+    db.query(activitiesQuery, (err, activitiesResults) => {
       if (err) {
-        console.error("Error fetching revenue data:", err);
+        console.error("Error fetching admin activities:", err);
         return res.status(500).json({ error: "Database error" });
       }
-
-      // Create 12-month array with zeros
-      const revenueData = new Array(12).fill(0);
-
-      // Fill in actual data
-      revenueResults.forEach((row) => {
-        revenueData[row.month - 1] = Number.parseFloat(row.total);
-      });
 
       res.json({
         success: true,
         stats,
-        revenueData,
+        recentActivities: activitiesResults,
       });
     });
   });
 });
 
-// Get all students for admin
+// Admin manage students
 app.get("/api/admin/students", (req, res) => {
   if (!req.session.adminId) {
     return res.status(401).json({ error: "Not authenticated" });
@@ -1338,7 +1717,7 @@ app.get("/api/admin/students", (req, res) => {
   const studentsQuery = `
     SELECT s.*, c.name as course_name 
     FROM students s 
-    LEFT JOIN courses c ON s.course_id = c.id 
+    JOIN courses c ON s.course_id = c.id 
     ORDER BY s.created_at DESC
   `;
 
@@ -1352,52 +1731,92 @@ app.get("/api/admin/students", (req, res) => {
   });
 });
 
-// Get pending approvals
-app.get("/api/admin/pending-approvals", (req, res) => {
+// Admin manage staff
+app.get("/api/admin/staff", (req, res) => {
   if (!req.session.adminId) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const pendingQuery = `
-    SELECT s.*, c.name as course_name 
-    FROM students s 
-    JOIN courses c ON s.course_id = c.id 
-    WHERE s.status = 'Applied'
-    ORDER BY s.created_at ASC
-  `;
+  const staffQuery = `SELECT * FROM staff ORDER BY created_at DESC`;
 
-  db.query(pendingQuery, (err, results) => {
+  db.query(staffQuery, (err, results) => {
     if (err) {
-      console.error("Error fetching pending approvals:", err);
+      console.error("Error fetching staff:", err);
       return res.status(500).json({ error: "Database error" });
     }
 
-    res.json({ success: true, students: results });
+    res.json({ success: true, staff: results });
   });
 });
 
-// Approve student
-app.post("/api/admin/approve-student/:studentId", (req, res) => {
+// Admin approve staff
+app.post("/api/admin/approve-staff", (req, res) => {
   if (!req.session.adminId) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const { studentId } = req.params;
+  const { staffId } = req.body;
 
-  const query = `UPDATE students SET status = 'Registered' WHERE id = ? AND status = 'Applied'`;
+  const query = `UPDATE staff SET status = 'Active' WHERE id = ? AND status = 'Pending'`;
 
-  db.query(query, [studentId], (err, result) => {
+  db.query(query, [staffId], (err, result) => {
     if (err) {
-      console.error("Error approving student:", err);
+      console.error("Error approving staff:", err);
       return res.status(500).json({ error: "Database error" });
     }
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Student not found or already processed" });
+      return res.status(404).json({ error: "Staff not found or already approved" });
     }
 
     res.json({ success: true });
   });
+});
+
+// Admin manage courses
+app.get("/api/admin/courses", (req, res) => {
+  if (!req.session.adminId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  const coursesQuery = `SELECT * FROM courses ORDER BY name`;
+
+  db.query(coursesQuery, (err, results) => {
+    if (err) {
+      console.error("Error fetching courses:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({ success: true, courses: results });
+  });
+});
+
+// Admin create course
+app.post("/api/admin/create-course", (req, res) => {
+  if (!req.session.adminId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  const { name, abbreviation, department, duration, certification_type, registration_fee, is_active } = req.body;
+
+  const query = `INSERT INTO courses (name, abbreviation, department, duration, certification_type, registration_fee, is_active) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+  db.query(
+    query,
+    [name, abbreviation, department, duration, certification_type, registration_fee, is_active ? 1 : 0],
+    (err, result) => {
+      if (err) {
+        console.error("Error creating course:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      res.json({
+        success: true,
+        courseId: result.insertId,
+      });
+    }
+  );
 });
 
 // Admin logout
@@ -1411,44 +1830,7 @@ app.post("/api/admin/logout", (req, res) => {
   });
 });
 
-// Utility function to generate admission number
-function generateAdmissionNumber(courseAbbr, certType) {
-  const year = new Date().getFullYear();
-  const randomNum = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-  return `${courseAbbr}/${year}/${certType}/${randomNum}`;
-}
-
-// Paystack verification function
-async function verifyPaystackPayment(reference) {
-  try {
-    const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-      },
-    });
-    return response.data.data;
-  } catch (error) {
-    console.error('Paystack verify error:', error);
-    return null;
-  }
-}
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({ error: "File too large" });
-    }
-  }
-  res.status(500).json({ error: error.message });
-});
-
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Access the application at http://localhost:${PORT}`);
 });
-
-module.exports = app;
