@@ -100,15 +100,18 @@
                                 </select>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="schedule" class="form-label">Preferred Schedule *</label>
-                                <select class="form-select form-control-custom" id="schedule" required>
-                                    <option value="">Select Schedule</option>
-                                    <option value="morning">Morning Classes</option>
-                                    <option value="evening">Evening Classes</option>
-                                </select>
-                                <small class="text-muted" id="scheduleNote">Note: Select your preferred schedule</small>
-                            </div>
+                    <div class="mb-3">
+                        <label for="schedule" class="form-label">Preferred Schedule *</label>
+                        <select class="form-select form-control-custom" id="schedule" required>
+                            <option value="">Select Schedule</option>
+                            <option value="morning">Morning Classes</option>
+                            <option value="evening">Evening Classes</option>
+                            <option value="weekend">Weekend Classes</option>
+                            <option value="online">Online Classes</option>
+                        </select>
+                        <small class="text-muted" id="scheduleNote">Note: Select your preferred schedule</small>
+                    </div>
+
                             
                         <div class="mb-3">
                             <label for="profilePicture" class="form-label">Profile Picture *</label>
@@ -121,12 +124,52 @@
                                 <p class="mb-0">You will be redirected to Paystack to complete your payment securely.</p>
                             </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-outline-primary w-50 mx-auto">
-                                <i class="fas fa-credit-card me-2"></i>
-                                Submit Application & Pay ₦100
-                            </button>
-                        </div>
+                      <!-- Terms & Conditions Checkbox -->
+<div class="mb-3">
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+    <label class="form-check-label" for="agreeTerms">
+      I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Terms & Conditions</a>
+    </label>
+  </div>
+</div>
+
+<!-- Submit Button -->
+<div class="d-grid">
+  <button type="submit" id="submitBtn" class="btn btn-outline-primary w-50 mx-auto" disabled>
+    <i class="fas fa-credit-card me-2"></i>
+    Submit Application & Pay ₦100
+  </button>
+</div>
+
+<!-- Terms & Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-file-contract me-2"></i> Terms & Conditions</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ol>
+          <li>Payments are non-refundable.</li>
+          <li>You must commit at least 21 hours weekly working on projects.</li>
+          <li>Late submission of projects and assignments will attract penalties.</li>
+          <li>You must have access to a computer and all necessary tools for your programme.</li>
+          <li>Students must enroll for one programme at a time.</li>
+          <li>Late coming will not be tolerated.</li>
+          <li>You must master how to use our portal.</li>
+          <li>At the end of the programme you will pay for your certificate.</li>
+          <li>You are eligible to get your certificate if and only if your final exams and project score together reach at least 50%.</li>
+        </ol>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success" id="acceptTerms">Continue & Accept</button>
+      </div>
+    </div>
+  </div>
+</div>
 
                         </form>
                     </div>

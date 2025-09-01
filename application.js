@@ -4,6 +4,28 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCourseScheduleRestriction();
 });
 
+
+const agreeBox = document.getElementById("agreeTerms");
+  const submitBtn = document.getElementById("submitBtn");
+
+  // Always disable submit if box not checked
+  function toggleSubmit() {
+    submitBtn.disabled = !agreeBox.checked;
+  }
+
+  // Manual check/uncheck
+  agreeBox.addEventListener("change", toggleSubmit);
+
+  // Accept Terms from Modal
+  document.getElementById("acceptTerms").addEventListener("click", function () {
+    agreeBox.checked = true; // Auto-check
+    toggleSubmit();          // Enable submit
+    const modal = bootstrap.Modal.getInstance(document.getElementById("termsModal"));
+    modal.hide();
+  });
+
+  // Initialize on load
+  toggleSubmit();
 // Load courses for selection
 async function loadCourses() {
     const courseSelect = document.getElementById("courseId");
