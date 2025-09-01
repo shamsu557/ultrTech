@@ -96,11 +96,14 @@ async function verifyPaystackPayment(reference) {
   }
 }
 // Utility function to generate admission number
-function generateAdmissionNumber(abbreviation, certType) {
-  const randomNum = Math.floor(1000 + Math.random() * 9000);
+function generateAdmissionNumber(courseAbbr, certType) {
   const year = new Date().getFullYear();
-  return `${abbreviation}/${year}/${certType === 'Certificate' ? 'CERT' : 'DIP'}/${randomNum}`;
+  const randomNum = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0");
+  return `${courseAbbr}/${year}/${certType}/${randomNum}`;
 }
+
 
 // Routes
 
@@ -250,19 +253,21 @@ app.get("/api/student/verify-application/:identifier", (req, res) => {
 
   if (type === "application") {
     query = `
-      SELECT s.*, c.name as course_name, c.registration_fee, c.duration, 
-             c.certification_type, c.schedule, c.abbreviation
-      FROM students s 
-      JOIN courses c ON s.course_id = c.id 
-      WHERE s.application_number = ? AND s.status IN ('Applied', 'Registered')
+      SELECT s.*, 
+           c.name AS course_name, c.registration_fee, c.duration, 
+           c.certification_type, c.abbreviation
+    FROM students s 
+    JOIN courses c ON s.course_id = c.id 
+    WHERE s.application_number = ? AND s.status IN ('Applied', 'Registered')
     `;
   } else {
     query = `
-      SELECT s.*, c.name as course_name, c.registration_fee, c.duration, 
-             c.certification_type, c.schedule, c.abbreviation
-      FROM students s 
-      JOIN courses c ON s.course_id = c.id 
-      WHERE s.admission_number = ? AND s.status IN ('Registered', 'Active')
+      SELECT s.*, 
+           c.name AS course_name, c.registration_fee, c.duration, 
+           c.certification_type, c.abbreviation
+    FROM students s 
+    JOIN courses c ON s.course_id = c.id 
+    WHERE s.admission_number = ? AND s.status IN ('Registered', 'Active')
     `;
   }
 
@@ -566,11 +571,16 @@ app.post("/api/payment/verify", async (req, res) => {
       }
 
       // 1. Get student and course details
-      const studentCheckQuery = `SELECT s.*, c.name as course_name, c.registration_fee, c.duration, 
-                               c.certification_type, c.schedule, c.abbreviation
-                               FROM students s 
-                               JOIN courses c ON s.course_id = c.id 
-                               WHERE s.id = ? LIMIT 1`;
+      const studentCheckQuery = `SELECT s.*, 
+         c.name AS course_name, 
+         c.registration_fee, 
+         c.duration, 
+         c.certification_type, 
+         c.abbreviation
+          FROM students s 
+          JOIN courses c ON s.course_id = c.id 
+          WHERE s.id = ? 
+          LIMIT 1`;
       db.query(studentCheckQuery, [studentId], (err, studentResults) => {
         if (err || studentResults.length === 0) {
           console.error("Error checking student:", err);
@@ -739,11 +749,14 @@ app.get("/api/receipt/download", (req, res) => {
       return res.status(400).json({ error: "Application number and reference required for application receipt." });
     }
 
+    // ✅ Changed here: removed c.schedule, so schedule comes from students table
     const query = `
-      SELECT s.*, c.name AS course_name, c.schedule 
+      SELECT s.*, 
+             c.name AS course_name
       FROM students s 
       LEFT JOIN courses c ON s.course_id = c.id 
-      WHERE s.application_number = ? AND s.reference_number = ?
+      WHERE s.application_number = ? 
+        AND s.reference_number = ?
     `;
 
     db.query(query, [appNum, ref], (err, results) => {
@@ -783,8 +796,7 @@ app.get("/api/receipt/download", (req, res) => {
       doc.text(`Date of Birth: ${student.date_of_birth}`);
       doc.text(`Address: ${student.address}`);
       doc.text(`Course: ${student.course_name || "Unknown"}`);
-      doc.text(`Schedule: ${student.schedule}`);
-      doc.text(`Profile Picture: ${student.profile_picture || "Not uploaded"}`);
+      doc.text(`Schedule: ${student.schedule}`); // ✅ This now comes from students table
       doc.moveDown(2);
 
       doc.fontSize(16).text("Application Payment Receipt", { align: "center" });
@@ -807,8 +819,9 @@ app.get("/api/receipt/download", (req, res) => {
     }
 
     const query = `
-      SELECT s.*, c.name AS course_name, c.schedule, c.certification_type,
-             p.amount, p.payment_date, p.installment_number, p.total_installments, p.status, p.reference_number, p.installment_type
+      SELECT s.*, c.name AS course_name, c.certification_type,
+             p.amount, p.payment_date, p.installment_number, p.total_installments, 
+             p.status, p.reference_number, p.installment_type
       FROM students s 
       JOIN courses c ON s.course_id = c.id 
       JOIN payments p ON s.id = p.student_id 
@@ -855,7 +868,7 @@ app.get("/api/receipt/download", (req, res) => {
       doc.text(`Email: ${student.email}`);
       doc.text(`Phone: ${student.phone}`);
       doc.text(`Course: ${student.course_name || "Unknown"}`);
-      doc.text(`Schedule: ${student.schedule}`);
+      doc.text(`Schedule: ${student.schedule}`); // ✅ Also from students table
       doc.moveDown();
 
       results.forEach(payment => {
@@ -883,10 +896,14 @@ app.get("/api/admission-letter/download", (req, res) => {
   }
 
   const query = `
-    SELECT s.*, c.name AS course_name, c.schedule, c.certification_type, c.duration
+    SELECT s.*, 
+           c.name AS course_name, 
+           c.certification_type, 
+           c.duration
     FROM students s 
     JOIN courses c ON s.course_id = c.id 
-    WHERE s.admission_number = ? AND s.status IN ('Registered', 'Active')
+    WHERE s.admission_number = ? 
+      AND s.status IN ('Registered', 'Active')
   `;
 
   db.query(query, [admissionNum], (err, results) => {
@@ -948,18 +965,31 @@ app.get("/api/admission-letter/download", (req, res) => {
       doc.text(`Program: ${student.course_name}`);
       doc.text(`Certification Type: ${student.certification_type}`);
       doc.text(`Duration: ${student.duration}`);
-      doc.text(`Schedule: ${student.schedule}`);
+      doc.text(`Schedule: ${student.schedule || "Not specified"}`); // ✅ From students table
       doc.text(`Your Admission Number is : ${student.admission_number}`);
       doc.text(`Start Date: 20th September 2025`);
-      doc.moveDown();
+      doc.moveDown(); 
       doc.text("We look forward to supporting you in your educational journey.");
       doc.moveDown();
       doc.text("Sincerely,");
       doc.moveDown();
 
       const signaturePath = path.join(__dirname, "signature.jfif");
-      try { doc.image(signaturePath, 50, doc.y, { width: 100 }); } catch (e) {}
-      doc.text("Junaidu Muhammad, Director", 50, doc.y + 10);
+      try {
+        doc.image(signaturePath, 50, doc.y, { width: 120 });
+      } catch (e) {
+        console.error("Error loading signature:", e);
+      }
+
+      doc.moveDown(4);
+      doc.font("Helvetica-Bold")
+         .fontSize(12)
+         .text("Director", 50, doc.y);
+
+      doc.moveDown(1);
+      doc.font("Times-Italic")
+         .fontSize(14)
+         .text("Junaidu Muhammad", 50, doc.y);
 
       doc.end();
     });

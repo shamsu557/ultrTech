@@ -526,7 +526,7 @@ async function setupSecurity(e) {
   const password = document.getElementById("password")?.value;
   const confirmPassword = document.getElementById("confirmPassword")?.value;
   const securityQuestion = document.getElementById("securityQuestion")?.value;
-  const securityAnswer = document.getElementById("securityAnswer")?.value;
+  const securityAnswer = document.getElementById("securityAnswer")?.value.trim().toUpperCase();
   const button = e.target.querySelector('button[type="submit"]');
   const originalText = button ? button.innerHTML : "Submit";
 
@@ -744,10 +744,10 @@ function showSecuritySetup(studentId, admissionNumber) {
       return;
     }
 
-    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/jfif"];
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (!allowedTypes.includes(file.type)) {
-      showMessage("Invalid file type. Please upload PDF, JPG, or PNG.", "danger");
+      showMessage("Invalid file type. Please upload PDF, JPG, PNG or JFIF.", "danger");
       return;
     }
     if (file.size > maxSize) {
@@ -934,7 +934,7 @@ function addQualificationField() {
         <input type="text" class="form-control form-control-custom" placeholder="Qualification Name" name="qualName[]" aria-label="Qualification Name">
       </div>
       <div class="col-md-6">
-        <input type="file" class="form-control form-control-custom" accept=".pdf,.jpg,.jpeg,.png" name="qualFile[]" aria-label="Upload Additional Qualification">
+        <input type="file" class="form-control form-control-custom" accept=".pdf,.jpg,.jpeg,.png,.jfif" name="qualFile[]" aria-label="Upload Additional Qualification">
       </div>
     </div>
   `;

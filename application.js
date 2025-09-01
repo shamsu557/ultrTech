@@ -30,6 +30,8 @@ function setupCourseScheduleRestriction() {
         <option value="">Select Schedule</option>
         <option value="morning">Morning Classes</option>
         <option value="evening">Evening Classes</option>
+        <option value="weekend">Weekend Classes</option>
+        <option value="online">Online Classes</option>
     `;
     scheduleNote.textContent = "Note: Backend, Frontend, and AI Starter Kit courses are only available on weekends";
 
