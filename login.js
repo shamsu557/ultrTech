@@ -1,183 +1,260 @@
-// Student Login JavaScript
-
 document.addEventListener("DOMContentLoaded", () => {
-  setupLoginForm()
-  setupForgotPasswordForm()
-})
+  setupLoginForm();
+  setupForgotPasswordForm();
+});
 
-// Setup login form
+// -------------------- LOGIN --------------------
 function setupLoginForm() {
-  const loginForm = document.getElementById("loginForm")
+  const loginForm = document.getElementById("loginForm");
 
   loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    const username = document.getElementById("username").value.trim()
-    const password = document.getElementById("password").value
+    const admissionNumber = document.getElementById("admissionNumber").value.trim();
+    const password = document.getElementById("password").value;
 
-    const submitBtn = loginForm.querySelector('button[type="submit"]')
-    const originalText = submitBtn.innerHTML
-    setLoadingState(submitBtn, true, originalText)
+    if (!/^[A-Z0-9/]{6,17}$/.test(admissionNumber)) {
+      showMessage("Admission Number must be 6-17 characters (A-Z, 0-9, /).", "danger");
+      return;
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
+      showMessage("Password must be at least 8 characters with uppercase, lowercase, and a number.", "danger");
+      return;
+    }
+
+    const submitBtn = loginForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    setLoadingState(submitBtn, true);
 
     try {
       const response = await fetch("/api/student/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
-      })
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ admissionNumber, password }),
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (result.success) {
-        showMessage("Login successful! Redirecting...", "success")
+        showMessage("Login successful! Redirecting...", "success");
         setTimeout(() => {
-          window.location.href = "/student/dashboard"
-        }, 1500)
+          window.location.href = "/student/dashboard";
+        }, 1500);
       } else {
-        throw new Error(result.error || "Login failed")
+        throw new Error(result.message || "Login failed");
       }
     } catch (error) {
-      console.error("Login error:", error)
-      showMessage(error.message || "Login failed. Please check your credentials.", "danger")
+      showMessage(error.message, "danger");
     } finally {
-      setLoadingState(submitBtn, false, originalText)
+      setLoadingState(submitBtn, false, originalText);
     }
-  })
+  });
 }
 
-// Setup forgot password form
+// -------------------- FORGOT PASSWORD --------------------
+let step = 1;
+
 function setupForgotPasswordForm() {
-  const forgotForm = document.getElementById("forgotPasswordForm")
-  const step = 1 // 1: Get security question, 2: Reset password
+  const forgotForm = document.getElementById("forgotPasswordForm");
 
   forgotForm.addEventListener("submit", async (e) => {
-    e.preventDefault()
-
+    e.preventDefault();
     if (step === 1) {
-      await getSecurityQuestion()
-    } else {
-      await resetPassword()
+      await handleStep1();
+    } else if (step === 2) {
+      await handleStep2();
+    } else if (step === 3) {
+      await handleStep3();
     }
-  })
+  });
 }
 
-// Get security question
-async function getSecurityQuestion() {
-  const username = document.getElementById("resetUsername").value.trim()
+// STEP 1: Get Security Question
+async function handleStep1() {
+  const admissionNumber = document.getElementById("resetAdmissionNumber").value.trim();
+
+  if (!/^[A-Z0-9/]{6,17}$/.test(admissionNumber)) {
+    showMessage("Admission Number must be 6-17 characters (A-Z, 0-9, /).", "danger");
+    return;
+  }
+
+  const stepButton = document.getElementById("stepButton");
+  const originalText = stepButton.innerHTML;
+  setLoadingState(stepButton, true);
 
   try {
-    const response = await fetch(`/api/student/security-question/${username}`)
-    const result = await response.json()
+    const response = await fetch(`/api/student/security-question/${encodeURIComponent(admissionNumber)}`, {
+      method: "GET",
+      credentials: "include",
+    });
+    const result = await response.json();
 
     if (result.success) {
-      document.getElementById("securityQuestionText").textContent = result.securityQuestion
-      document.getElementById("securityQuestionSection").style.display = "block"
-      document.getElementById("resetButtonText").textContent = "Reset Password"
-      step = 2
+      document.getElementById("securityQuestionText").textContent = result.securityQuestion;
+      document.getElementById("step2").style.display = "block";
+      stepButton.textContent = "Verify Answer";
+      step = 2;
     } else {
-      throw new Error(result.error || "Student not found")
+      throw new Error(result.message || "Student not found");
     }
   } catch (error) {
-    console.error("Security question error:", error)
-    showMessage(error.message || "Failed to get security question", "danger")
+    showMessage(error.message, "danger");
+  } finally {
+    setLoadingState(stepButton, false, originalText);
   }
 }
 
-// Reset password
-async function resetPassword() {
-  const username = document.getElementById("resetUsername").value.trim()
-  const securityAnswer = document.getElementById("securityAnswerReset").value.trim()
-  const newPassword = document.getElementById("newPassword").value
-  const confirmPassword = document.getElementById("confirmNewPassword").value
+// STEP 2: Verify Security Answer
+async function handleStep2() {
+  const admissionNumber = document.getElementById("resetAdmissionNumber").value.trim();
+  const securityAnswer = document.getElementById("securityAnswer").value.trim().toUpperCase();
 
-  if (newPassword !== confirmPassword) {
-    showMessage("Passwords do not match", "danger")
-    return
+  if (!securityAnswer) {
+    showMessage("Security answer is required.", "danger");
+    return;
   }
 
-  if (newPassword.length < 8) {
-    showMessage("Password must be at least 8 characters long", "danger")
-    return
+  const stepButton = document.getElementById("stepButton");
+  const originalText = stepButton.innerHTML;
+  setLoadingState(stepButton, true);
+
+  try {
+    const response = await fetch("/api/student/verify-answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ admissionNumber, securityAnswer }),
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      document.getElementById("step2").style.display = "none";
+      document.getElementById("step3").style.display = "block";
+      stepButton.textContent = "Change Password";
+      step = 3;
+    } else {
+      throw new Error(result.message || "Incorrect security answer.");
+    }
+  } catch (error) {
+    showMessage(error.message, "danger");
+  } finally {
+    setLoadingState(stepButton, false, originalText);
   }
+}
+
+// STEP 3: Reset Password
+async function handleStep3() {
+  const admissionNumber = document.getElementById("resetAdmissionNumber").value.trim();
+  const newPassword = document.getElementById("newPassword").value;
+  const confirmNewPassword = document.getElementById("confirmNewPassword").value;
+
+  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword)) {
+    showMessage("New password must be at least 8 characters with uppercase, lowercase, and a number.", "danger");
+    return;
+  }
+  if (newPassword !== confirmNewPassword) {
+    showMessage("Passwords do not match.", "danger");
+    return;
+  }
+
+  const stepButton = document.getElementById("stepButton");
+  const originalText = stepButton.innerHTML;
+  setLoadingState(stepButton, true);
 
   try {
     const response = await fetch("/api/student/reset-password", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        securityAnswer: securityAnswer.toUpperCase().trim(),
-        newPassword,
-      }),
-    })
-
-    const result = await response.json()
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ admissionNumber, newPassword }),
+    });
+    const result = await response.json();
 
     if (result.success) {
-      showMessage("Password reset successful! You can now login with your new password.", "success")
-      const modal = window.bootstrap.Modal.getInstance(document.getElementById("forgotPasswordModal"))
-      modal.hide()
+      // Show inline alert
+      showMessage("Password reset successful! Redirecting to login...", "success");
 
-      // Reset form
-      document.getElementById("forgotPasswordForm").reset()
-      document.getElementById("securityQuestionSection").style.display = "none"
-      document.getElementById("resetButtonText").textContent = "Get Security Question"
-      step = 1
+      // Close modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById("forgotPasswordModal"));
+      modal.hide();
+
+      // ✅ Show toast notification
+      const toastEl = document.getElementById("successToast");
+      if (toastEl) {
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+      }
+
+      // Redirect after delay
+      setTimeout(() => {
+        window.location.href = "/student/login";
+      }, 2500);
     } else {
-      throw new Error(result.error || "Password reset failed")
+      throw new Error(result.message || "Password reset failed.");
     }
   } catch (error) {
-    console.error("Password reset error:", error)
-    showMessage(error.message || "Password reset failed", "danger")
+    showMessage(error.message, "danger");
+  } finally {
+    setLoadingState(stepButton, false, originalText);
   }
 }
 
-// Toggle password visibility
-function togglePassword() {
-  const passwordInput = document.getElementById("password")
-  const toggleIcon = document.getElementById("passwordToggle")
+// -------------------- LOGOUT --------------------
+async function logout() {
+  try {
+    const response = await fetch("/api/student/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
 
-  if (passwordInput.type === "password") {
-    passwordInput.type = "text"
-    toggleIcon.className = "fas fa-eye-slash"
+    if (result.success) {
+      showMessage("Logged out successfully!", "success");
+      setTimeout(() => {
+        window.location.href = result.redirect || "/student/login.html";
+      }, 1500);
+    } else {
+      throw new Error(result.message || "Logout failed");
+    }
+  } catch (error) {
+    showMessage(error.message, "danger");
+  }
+}
+
+// -------------------- UTILITIES --------------------
+function togglePassword(inputId, toggleId) {
+  const input = document.getElementById(inputId);
+  const toggleIcon = document.getElementById(toggleId);
+
+  if (input.type === "password") {
+    input.type = "text";
+    toggleIcon.className = "fas fa-eye-slash";
   } else {
-    passwordInput.type = "password"
-    toggleIcon.className = "fas fa-eye"
+    input.type = "password";
+    toggleIcon.className = "fas fa-eye";
   }
 }
 
-// Declare functions
-function setLoadingState(button, loading, originalText) {
+function setLoadingState(button, loading, originalText = "Loading...") {
   if (loading) {
-    button.disabled = true
-    button.innerHTML = "Loading..."
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
   } else {
-    button.disabled = false
-    button.innerHTML = originalText
+    button.disabled = false;
+    button.innerHTML = originalText;
   }
 }
 
 function showMessage(message, type) {
-  const messageElement = document.getElementById("message")
-  messageElement.textContent = message
-  messageElement.className = `alert alert-${type}`
-  messageElement.style.display = "block"
+  const messageElement = document.getElementById("message");
+  if (!messageElement) return;
+
+  messageElement.textContent = message;
+  messageElement.className = `alert alert-${type} d-block`;
+  messageElement.style.display = "block";
 
   setTimeout(() => {
-    messageElement.style.display = "none"
-  }, 3000)
-}
-
-// Declare bootstrap
-window.bootstrap = window.bootstrap || {}
-window.bootstrap.Modal = window.bootstrap.Modal || {
-  getInstance: (element) => ({
-    hide: () => {
-      element.style.display = "none"
-    },
-  }),
+    messageElement.style.display = "none";
+  }, 3000);
 }

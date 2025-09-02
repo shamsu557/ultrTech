@@ -125,10 +125,12 @@ app.get("/student/login", (req, res) => {
   res.sendFile(path.join(__dirname, "student_login.html"));
 });
 
-app.get("/student/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "student_dashboard.html"));
+app.get('/student/dashboard', (req, res) => {
+  if (!req.session.student) {
+    return res.redirect('/student/login');
+  }
+  res.sendFile(path.join(__dirname, 'student_dashboard.html'));
 });
-
 // Staff routes
 app.get("/staff-signup", (req, res) => {
   res.sendFile(path.join(__dirname, "staff_signup.html"));
@@ -1616,6 +1618,178 @@ app.post("/api/staff/logout", (req, res) => {
       return res.status(500).json({ error: "Logout failed" });
     }
     res.json({ success: true });
+  });
+});
+
+
+// Input validation
+const validateInput = (admissionNumber, password) => {
+  const admissionRegex = /^[A-Z0-9/]{6,17}$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+  return (
+    admissionRegex.test(admissionNumber) &&
+    (!password || passwordRegex.test(password))
+  );
+};
+
+// Student login
+app.post('/api/student/login', (req, res) => {
+  const { admissionNumber, password } = req.body;
+
+  if (!admissionNumber || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  if (!validateInput(admissionNumber)) {
+    return res.status(400).json({ success: false, message: 'Invalid admission number format.' });
+  }
+
+  db.query('SELECT * FROM students WHERE admission_number = ?', [admissionNumber], (err, results) => {
+    if (err) {
+      console.error('Login error:', err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+
+    console.log('Query results:', results);
+
+    if (!results || results.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid Admission Number or Password' });
+    }
+
+    const student = results[0];
+    bcrypt.compare(password, student.password_hash, (err, validPassword) => {
+      if (err) {
+        console.error('Password comparison error:', err);
+        return res.status(500).json({ success: false, message: 'Server error' });
+      }
+
+      if (!validPassword) {
+        return res.status(401).json({ success: false, message: 'Invalid Admission Number or Password' });
+      }
+
+      req.session.student = {
+        id: student.id,
+        admissionNumber: student.admission_number,
+        name: `${student.first_name} ${student.last_name}`,
+      };
+
+      return res.json({ success: true, message: 'Login successful' });
+    });
+  });
+});
+
+// Get security question
+// Get Security Question
+app.get("/api/student/security-question/:admissionNumber", (req, res) => {
+  const admissionNumber = req.params.admissionNumber.trim().toUpperCase();
+
+  const query = "SELECT security_question FROM students WHERE admission_number = ?";
+  db.query(query, [admissionNumber], (err, results) => {
+    if (err) {
+      console.error("DB error:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+
+    if (results.length === 0) {
+      return res.json({ success: false, message: "Student not found" });
+    }
+
+    res.json({ success: true, securityQuestion: results[0].security_question });
+  });
+});
+// Verify Security Answer
+app.post("/api/student/verify-answer", (req, res) => {
+  const { admissionNumber, securityAnswer } = req.body;
+
+  if (!admissionNumber || !securityAnswer) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  const query = "SELECT security_answer FROM students WHERE admission_number = ?";
+  db.query(query, [admissionNumber.trim().toUpperCase()], (err, results) => {
+    if (err) {
+      console.error("DB error:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+
+    if (results.length === 0) {
+      return res.json({ success: false, message: "Student not found" });
+    }
+
+    const storedAnswer = results[0].security_answer?.trim().toUpperCase();
+    const providedAnswer = securityAnswer.trim().toUpperCase();
+
+    if (storedAnswer === providedAnswer) {
+      res.json({ success: true, message: "Answer verified" });
+    } else {
+      res.json({ success: false, message: "Incorrect security answer" });
+    }
+  });
+});
+// Reset Password
+app.post("/api/student/reset-password", async (req, res) => {
+  const { admissionNumber, newPassword } = req.body;
+
+  if (!admissionNumber || !newPassword) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const query = "UPDATE students SET password_hash = ? WHERE admission_number = ?";
+    db.query(query, [hashedPassword, admissionNumber.trim().toUpperCase()], (err, result) => {
+      if (err) {
+        console.error("DB error:", err);
+        return res.status(500).json({ success: false, message: "Server error" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.json({ success: false, message: "Student not found" });
+      }
+
+      res.json({ success: true, message: "Password reset successful" });
+    });
+  } catch (error) {
+    console.error("Hashing error:", error);
+    res.status(500).json({ success: false, message: "Error resetting password" });
+  }
+});
+// Profile
+app.get('/api/student/profile', (req, res) => {
+  if (!req.session.student?.id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  db.query(
+    'SELECT id, admission_number, first_name, last_name, course_id, status FROM students WHERE id = ?',
+    [req.session.student.id],
+    (err, results) => {
+      if (err) {
+        console.error('Profile error:', err);
+        return res.status(500).json({ error: 'Server error' });
+      }
+
+      console.log('Profile query results:', results);
+
+      if (!results || results.length === 0) {
+        return res.status(404).json({ error: 'Student not found' });
+      }
+
+      return res.json({ student: results[0] });
+    }
+  );
+});
+
+// Logout
+app.post('/api/student/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).json({ error: 'Could not log out' });
+    }
+    res.clearCookie('connect.sid');
+    return res.json({ success: true, message: 'Logged out successfully', redirect: '/student/login' });
   });
 });
 
