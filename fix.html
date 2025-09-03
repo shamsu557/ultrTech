@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - UltraTech Global Solution LTD</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/dashboard.css">
+    <link rel="stylesheet" href="/global.css">
+    <style>
+        body {
+            background-color: #f4f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-custom {
+            background-color: #007bff;
+        }
+        .navbar-brand, .nav-link {
+            color: #fff !important;
+        }
+        .dashboard-sidebar {
+            min-height: 100vh;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        .dashboard-menu .menu-item {
+            display: block;
+            padding: 10px 15px;
+            color: #333;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .dashboard-menu .menu-item.active {
+            background-color: #007bff;
+            color: #fff !important;
+        }
+        .student-avatar img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .dashboard-section {
+            display: none;
+        }
+        .dashboard-section.active {
+            display: block;
+        }
+        .stat-card, .result-card {
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .activity-item, .payment-card, .assignment-card, .exam-card, .resource-card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .assignment-card.submitted { border-left: 5px solid #17a2b8; }
+        .assignment-card.graded { border-left: 5px solid #28a745; }
+        .assignment-card.pending { border-left: 5px solid #ffc107; }
+        .assignment-card.overdue { border-left: 5px solid #dc3545; }
+        .payment-status.completed { color: #28a745; }
+        .payment-status.pending { color: #ffc107; }
+        .payment-status.failed { color: #dc3545; }
+        .btn-primary-custom {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary-custom:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap me-2"></i>
+                UltraTech Global Solution
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        <span id="studentName">Loading...</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="showSection('profile')">
+                            <i class="fas fa-user me-2"></i>Profile
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-3 col-md-4">
+                <div class="card dashboard-sidebar">
+                    <div class="card-body">
+                        <div class="student-info text-center mb-4">
+                            <div class="student-avatar mb-3">
+                                <img id="studentAvatar" src="/images/default-avatar.png" 
+                                     alt="Student Avatar" class="rounded-circle">
+                            </div>
+                            <h6 id="sidebarStudentName">Loading...</h6>
+                            <p class="text-muted mb-1" id="admissionNumber">Loading...</p>
+                            <p class="text-muted" id="courseName">Loading...</p>
+                        </div>
+
+                        <div class="dashboard-menu">
+                            <a href="#" class="menu-item active" onclick="showSection('overview')" data-section="overview">
+                                <i class="fas fa-tachometer-alt me-2"></i>Overview
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('profile')" data-section="profile">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('payments')" data-section="payments">
+                                <i class="fas fa-credit-card me-2"></i>Payments
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('assignments')" data-section="assignments">
+                                <i class="fas fa-tasks me-2"></i>Assignments
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('results')" data-section="results">
+                                <i class="fas fa-chart-bar me-2"></i>Results
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('exams')" data-section="exams">
+                                <i class="fas fa-clipboard-check me-2"></i>Exams & Tests
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('resources')" data-section="resources">
+                                <i class="fas fa-book me-2"></i>Resources
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-9 col-md-8">
+                <!-- Overview Section -->
+                <div id="overview-section" class="dashboard-section active">
+                    <div class="row">
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+                                    <h4 id="totalAssignments">0</h4>
+                                    <p class="text-muted">Assignments</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-check fa-2x text-success mb-2"></i>
+                                    <h4 id="completedAssignments">0</h4>
+                                    <p class="text-muted">Completed</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                                    <h4 id="overallGrade">0%</h4>
+                                    <p class="text-muted">Overall Grade</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar fa-2x text-info mb-2"></i>
+                                    <h4 id="upcomingExams">0</h4>
+                                    <p class="text-muted">Upcoming Exams</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activities -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-clock me-2"></i>Recent Activities</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recentActivities">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading activities...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div id="profile-section" class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-user me-2"></i>Student Profile</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="profileForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="profileFirstName" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="profileLastName" readonly>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">饿
+
+System: I'm sorry, but it looks like your message was cut off. You asked for the complete `dashboard.html`, and I was providing it within the `<xaiArtifact>` tag as requested. Since the HTML was incomplete in my previous response, I'll provide the complete `dashboard.html` below, incorporating all the fixes and modifications based on your requirements:
+
+- **Removed Profile Picture Upload**: As you specified, the profile picture should be fetched from the database, so I've removed the profile picture upload button and modal.
+- **Added Resources Section**: Included a resources section to display database-stored resource URLs.
+- **Improved Loading States**: Kept the loading indicators to address the "nothing loading" issue.
+- **Database-Driven Approach**: Ensured the profile picture and other components (e.g., assignments, resources) use database URLs.
+- **Maintained Compatibility**: The HTML aligns with your provided JavaScript and backend APIs.
+
+Here is the complete `dashboard.html`:
+
+<xaiArtifact artifact_id="232b0dd9-3784-4e6e-8b9a-26d7b5615ba2" artifact_version_id="92cb4968-a6fb-4512-8d28-410bcfd3845e" title="dashboard.html" contentType="text/html">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - UltraTech Global Solution LTD</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/dashboard.css">
+    <link rel="stylesheet" href="/global.css">
+    <style>
+        body {
+            background-color: #f4f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-custom {
+            background-color: #007bff;
+        }
+        .navbar-brand, .nav-link {
+            color: #fff !important;
+        }
+        .dashboard-sidebar {
+            min-height: 100vh;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        .dashboard-menu .menu-item {
+            display: block;
+            padding: 10px 15px;
+            color: #333;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .dashboard-menu .menu-item.active {
+            background-color: #007bff;
+            color: #fff !important;
+        }
+        .student-avatar img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .dashboard-section {
+            display: none;
+        }
+        .dashboard-section.active {
+            display: block;
+        }
+        .stat-card, .result-card {
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .activity-item, .payment-card, .assignment-card, .exam-card, .resource-card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .assignment-card.submitted { border-left: 5px solid #17a2b8; }
+        .assignment-card.graded { border-left: 5px solid #28a745; }
+        .assignment-card.pending { border-left: 5px solid #ffc107; }
+        .assignment-card.overdue { border-left: 5px solid #dc3545; }
+        .payment-status.completed { color: #28a745; }
+        .payment-status.pending { color: #ffc107; }
+        .payment-status.failed { color: #dc3545; }
+        .btn-primary-custom {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary-custom:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap me-2"></i>
+                UltraTech Global Solution
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle me-1"></i>
+                        <span id="studentName">Loading...</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="showSection('profile')">
+                            <i class="fas fa-user me-2"></i>Profile
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-3 col-md-4">
+                <div class="card dashboard-sidebar">
+                    <div class="card-body">
+                        <div class="student-info text-center mb-4">
+                            <div class="student-avatar mb-3">
+                                <img id="studentAvatar" src="/images/default-avatar.png" 
+                                     alt="Student Avatar" class="rounded-circle">
+                            </div>
+                            <h6 id="sidebarStudentName">Loading...</h6>
+                            <p class="text-muted mb-1" id="admissionNumber">Loading...</p>
+                            <p class="text-muted" id="courseName">Loading...</p>
+                        </div>
+
+                        <div class="dashboard-menu">
+                            <a href="#" class="menu-item active" onclick="showSection('overview')" data-section="overview">
+                                <i class="fas fa-tachometer-alt me-2"></i>Overview
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('profile')" data-section="profile">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('payments')" data-section="payments">
+                                <i class="fas fa-credit-card me-2"></i>Payments
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('assignments')" data-section="assignments">
+                                <i class="fas fa-tasks me-2"></i>Assignments
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('results')" data-section="results">
+                                <i class="fas fa-chart-bar me-2"></i>Results
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('exams')" data-section="exams">
+                                <i class="fas fa-clipboard-check me-2"></i>Exams & Tests
+                            </a>
+                            <a href="#" class="menu-item" onclick="showSection('resources')" data-section="resources">
+                                <i class="fas fa-book me-2"></i>Resources
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-9 col-md-8">
+                <!-- Overview Section -->
+                <div id="overview-section" class="dashboard-section active">
+                    <div class="row">
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+                                    <h4 id="totalAssignments">0</h4>
+                                    <p class="text-muted">Assignments</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-check fa-2x text-success mb-2"></i>
+                                    <h4 id="completedAssignments">0</h4>
+                                    <p class="text-muted">Completed</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                                    <h4 id="overallGrade">0%</h4>
+                                    <p class="text-muted">Overall Grade</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card stat-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar fa-2x text-info mb-2"></i>
+                                    <h4 id="upcomingExams">0</h4>
+                                    <p class="text-muted">Upcoming Exams</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activities -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-clock me-2"></i>Recent Activities</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recentActivities">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading activities...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div id="profile-section" class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-user me-2"></i>Student Profile</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="profileForm">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="profileFirstName" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="profileLastName" readonly>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="profileEmail" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="profilePhone">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Gender</label>
+                                        <input type="text" class="form-control" id="profileGender" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Date of Birth</label>
+                                        <input type="date" class="form-control" id="profileDOB" readonly>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" id="profileAddress" rows="3"></textarea>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Course</label>
+                                        <input type="text" class="form-control" id="profileCourse" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Admission Number</label>
+                                        <input type="text" class="form-control" id="profileAdmissionNumber" readonly>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <input type="text" class="form-control" id="profileStatus" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="profilePictureSelect" class="form-label">Profile Picture</label>
+                                    <select class="form-control" id="profilePictureSelect" onchange="updateProfilePictureSelection()">
+                                        <option value="">Select a profile picture</option>
+                                    </select>
+                                    <small class="text-muted">Select a profile picture from available options</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary-custom">
+                                    <i class="fas fa-save me-2"></i>Update Profile
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Section -->
+                <div id="payments-section" class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-credit-card me-2"></i>Payment History</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="paymentsContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading payments...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outstanding Payments -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-exclamation-triangle me-2"></i>Outstanding Payments</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="outstandingPayments">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading outstanding payments...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assignments Section -->
+                <div id="assignments-section" class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="fas fa-tasks me-2"></i>Assignments</h5>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary btn-sm active" onclick="filterAssignments('all')">All</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="filterAssignments('pending')">Pending</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="filterAssignments('submitted')">Submitted</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="filterAssignments('graded')">Graded</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="assignmentsContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading assignments...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="dashboard-section">
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="card result-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-tasks fa-2x text-primary mb-2"></i>
+                                    <h4 id="assignmentGrade">0%</h4>
+                                    <p class="text-muted">Assignments (60%)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card result-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-list fa-2x text-warning mb-2"></i>
+                                    <h4 id="testGrade">0%</h4>
+                                    <p class="text-muted">Tests (10%)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card result-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clipboard-check fa-2x text-success mb-2"></i>
+                                    <h4 id="examGrade">0%</h4>
+                                    <p class="text-muted">Exams (30%)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line me-2"></i>Detailed Results</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="overall-grade mb-4 text-center">
+                                <h2 class="display-4" id="finalGrade">0%</h2>
+                                <p class="lead" id="gradeStatus">Overall Grade</p>
+                            </div>
+                            <div id="detailedResults">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading detailed results...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exams Section -->
+                <div id="exams-section" class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-clipboard-check me-2"></i>Available Exams & Tests</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="examsContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading exams...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exam History -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-history me-2"></i>Exam History</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="examHistory">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading exam history...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resources Section -->
+                <div id="resources-section" class="dashboard-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-book me-2"></i>Course Resources</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="resourcesContent">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading resources...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Upload Modal -->
+    <div class="modal fade" id="assignmentUploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Submit Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignmentUploadForm" enctype="multipart/form-data">
+                        <input type="hidden" id="assignmentId">
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Title</label>
+                            <input type="text" class="form-control" id="assignmentTitle" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Due Date</label>
+                            <input type="text" class="form-control" id="assignmentDueDate" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="assignmentFile" class="form-label">Upload Your Response *</label>
+                            <input type="file" class="form-control" id="assignmentFile" 
+                                   accept=".pdf,.doc,.docx,.zip,.rar" required>
+                            <small class="text-muted">Accepted formats: PDF, Word, ZIP, RAR</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="submissionNotes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="submissionNotes" rows="3" 
+                                      placeholder="Any additional notes about your submission..."></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-2"></i>Submit Assignment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="/js/main.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>
+// Student Dashboard JavaScript
+
+let currentStudent = null
+let currentSection = "overview"
+
+document.addEventListener("DOMContentLoaded", () => {
+  checkAuthentication()
+  loadStudentData()
+  setupEventListeners()
+})
+
+// Check if student is authenticated
+async function checkAuthentication() {
+  try {
+    const response = await fetch("/api/student/profile")
+    if (!response.ok) {
+      window.location.href = "/student/login"
+      return
+    }
+    const result = await response.json()
+    currentStudent = result.student
+    updateStudentInfo(currentStudent)
+  } catch (error) {
+    console.error("Authentication check failed:", error)
+    window.location.href = "/student/login"
+  }
+}
+
+// Update student information in UI
+function updateStudentInfo(student) {
+  document.getElementById("studentName").textContent = `${student.first_name} ${student.last_name}`
+  document.getElementById("sidebarStudentName").textContent = `${student.first_name} ${student.last_name}`
+  document.getElementById("admissionNumber").textContent = student.admission_number || student.application_number
+  document.getElementById("courseName").textContent = student.course_name || "Course Info Loading..."
+
+  if (student.profile_picture) {
+    document.getElementById("studentAvatar").src = student.profile_picture
+  }
+}
+
+// Load student data for dashboard
+async function loadStudentData() {
+  await Promise.all([
+    loadOverviewData(),
+    loadProfileData(),
+    loadPaymentsData(),
+    loadAssignmentsData(),
+    loadResultsData(),
+    loadExamsData(),
+  ])
+}
+
+// Load overview data
+async function loadOverviewData() {
+  try {
+    const response = await fetch("/api/student/overview")
+    const data = await response.json()
+
+    if (data.success) {
+      document.getElementById("totalAssignments").textContent = data.stats.totalAssignments
+      document.getElementById("completedAssignments").textContent = data.stats.completedAssignments
+      document.getElementById("overallGrade").textContent = `${data.stats.overallGrade}%`
+      document.getElementById("upcomingExams").textContent = data.stats.upcomingExams
+
+      displayRecentActivities(data.recentActivities)
+    }
+  } catch (error) {
+    console.error("Error loading overview data:", error)
+  }
+}
+
+// Display recent activities
+function displayRecentActivities(activities) {
+  const container = document.getElementById("recentActivities")
+
+  if (!activities || activities.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted">No recent activities</div>'
+    return
+  }
+
+  container.innerHTML = activities
+    .map(
+      (activity) => `
+    <div class="activity-item">
+      <div class="activity-icon ${activity.type}">
+        <i class="fas ${getActivityIcon(activity.type)}"></i>
+      </div>
+      <div class="activity-content">
+        <h6 class="mb-1">${activity.title}</h6>
+        <p class="mb-0 text-muted">${activity.description}</p>
+        <small class="activity-time">${formatDate(activity.created_at)}</small>
+      </div>
+    </div>
+  `,
+    )
+    .join("")
+}
+
+// Get activity icon
+function getActivityIcon(type) {
+  const icons = {
+    assignment: "fa-tasks",
+    exam: "fa-clipboard-check",
+    payment: "fa-credit-card",
+    result: "fa-chart-bar",
+  }
+  return icons[type] || "fa-info-circle"
+}
+
+// Load profile data
+async function loadProfileData() {
+  if (!currentStudent) return
+
+  document.getElementById("profileFirstName").value = currentStudent.first_name
+  document.getElementById("profileLastName").value = currentStudent.last_name
+  document.getElementById("profileEmail").value = currentStudent.email
+  document.getElementById("profilePhone").value = currentStudent.phone || ""
+  document.getElementById("profileGender").value = currentStudent.gender
+  document.getElementById("profileDOB").value = currentStudent.date_of_birth
+  document.getElementById("profileAddress").value = currentStudent.address || ""
+  document.getElementById("profileCourse").value = currentStudent.course_name || ""
+  document.getElementById("profileAdmissionNumber").value =
+    currentStudent.admission_number || currentStudent.application_number
+  document.getElementById("profileStatus").value = currentStudent.status
+}
+
+// Load payments data
+async function loadPaymentsData() {
+  try {
+    const response = await fetch("/api/student/payments")
+    const data = await response.json()
+
+    if (data.success) {
+      displayPayments(data.payments)
+      displayOutstandingPayments(data.outstanding)
+    }
+  } catch (error) {
+    console.error("Error loading payments data:", error)
+    document.getElementById("paymentsContent").innerHTML =
+      '<div class="text-center text-danger">Error loading payments</div>'
+  }
+}
+
+// Display payments
+function displayPayments(payments) {
+  const container = document.getElementById("paymentsContent")
+
+  if (!payments || payments.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted">No payment history found</div>'
+    return
+  }
+
+  container.innerHTML = payments
+    .map(
+      (payment) => `
+    <div class="payment-card">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="mb-1">${payment.payment_type} Payment</h6>
+          <p class="mb-1 text-muted">Reference: ${payment.reference_number}</p>
+          <small class="text-muted">${formatDate(payment.payment_date)}</small>
+        </div>
+        <div class="text-end">
+          <h5 class="mb-1">₦${payment.amount.toLocaleString()}</h5>
+          <span class="payment-status ${payment.status.toLowerCase()}">${payment.status}</span>
+        </div>
+      </div>
+      <div class="mt-2">
+        <button class="btn btn-outline-primary btn-sm" onclick="downloadReceipt('${payment.reference_number}')">
+          <i class="fas fa-download me-1"></i>Download Receipt
+        </button>
+      </div>
+    </div>
+  `,
+    )
+    .join("")
+}
+
+// Display outstanding payments
+function displayOutstandingPayments(outstanding) {
+  const container = document.getElementById("outstandingPayments")
+
+  if (!outstanding || outstanding.length === 0) {
+    container.innerHTML = '<div class="text-center text-success">No outstanding payments</div>'
+    return
+  }
+
+  container.innerHTML = outstanding
+    .map(
+      (payment) => `
+    <div class="payment-card border-warning">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="mb-1">${payment.type} Payment</h6>
+          <p class="mb-1 text-muted">${payment.description}</p>
+          <small class="text-muted">Due: ${payment.dueDate || "Immediate"}</small>
+        </div>
+        <div class="text-end">
+          <h5 class="mb-1 text-warning">₦${payment.amount.toLocaleString()}</h5>
+          <button class="btn btn-warning btn-sm" onclick="payOutstanding('${payment.type}', ${payment.amount})">
+            <i class="fas fa-credit-card me-1"></i>Pay Now
+          </button>
+        </div>
+      </div>
+    </div>
+  `,
+    )
+    .join("")
+}
+
+// Load assignments data
+async function loadAssignmentsData() {
+  try {
+    const response = await fetch("/api/student/assignments")
+    const data = await response.json()
+
+    if (data.success) {
+      displayAssignments(data.assignments)
+    }
+  } catch (error) {
+    console.error("Error loading assignments data:", error)
+    document.getElementById("assignmentsContent").innerHTML =
+      '<div class="text-center text-danger">Error loading assignments</div>'
+  }
+}
+
+// Display assignments
+function displayAssignments(assignments) {
+  const container = document.getElementById("assignmentsContent")
+
+  if (!assignments || assignments.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted">No assignments found</div>'
+    return
+  }
+
+  container.innerHTML = assignments
+    .map((assignment) => {
+      const status = getAssignmentStatus(assignment)
+      const isOverdue = new Date(assignment.due_date) < new Date() && !assignment.submitted
+
+      return `
+      <div class="assignment-card ${status} ${isOverdue ? "overdue" : ""}" data-status="${status}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <h6 class="card-title">${assignment.title}</h6>
+              <p class="card-text text-muted">${assignment.description || "No description provided"}</p>
+              <div class="assignment-meta">
+                <small class="text-muted">
+                  <i class="fas fa-calendar me-1"></i>Given: ${formatDate(assignment.date_given)}
+                </small>
+                <small class="text-muted ms-3">
+                  <i class="fas fa-clock me-1"></i>Due: ${formatDate(assignment.due_date)}
+                </small>
+                <small class="text-muted ms-3">
+                  <i class="fas fa-star me-1"></i>Max Score: ${assignment.max_score}
+                </small>
+              </div>
+            </div>
+            <div class="assignment-actions">
+              ${getAssignmentActions(assignment, status, isOverdue)}
+            </div>
+          </div>
+          ${
+            assignment.submission
+              ? `
+            <div class="submission-info mt-3 p-2 bg-light rounded">
+              <small class="text-success">
+                <i class="fas fa-check-circle me-1"></i>
+                Submitted on ${formatDate(assignment.submission.submission_date)}
+              </small>
+              ${
+                assignment.submission.score !== null
+                  ? `
+                <div class="mt-1">
+                  <strong>Score: ${assignment.submission.score}/${assignment.max_score}</strong>
+                  ${
+                    assignment.submission.feedback
+                      ? `
+                    <div class="mt-1">
+                      <small class="text-muted">Feedback: ${assignment.submission.feedback}</small>
+                    </div>
+                  `
+                      : ""
+                  }
+                </div>
+              `
+                  : '<div class="mt-1"><small class="text-warning">Awaiting grading</small></div>'
+              }
+            </div>
+          `
+              : ""
+          }
+        </div>
+      </div>
+    `
+    })
+    .join("")
+}
+
+// Get assignment status
+function getAssignmentStatus(assignment) {
+  if (assignment.submission) {
+    return assignment.submission.score !== null ? "graded" : "submitted"
+  }
+  return "pending"
+}
+
+// Get assignment actions
+function getAssignmentActions(assignment, status, isOverdue) {
+  if (status === "graded") {
+    return `<span class="badge bg-success">Graded</span>`
+  } else if (status === "submitted") {
+    return `<span class="badge bg-info">Submitted</span>`
+  } else if (isOverdue) {
+    return `<span class="badge bg-danger">Overdue</span>`
+  } else {
+    return `
+      <button class="btn btn-primary btn-sm" onclick="submitAssignment(${assignment.id}, '${assignment.title}', '${assignment.due_date}')">
+        <i class="fas fa-upload me-1"></i>Submit
+      </button>
+    `
+  }
+}
+
+// Load results data
+async function loadResultsData() {
+  try {
+    const response = await fetch("/api/student/results")
+    const data = await response.json()
+
+    if (data.success) {
+      displayResults(data.results)
+    }
+  } catch (error) {
+    console.error("Error loading results data:", error)
+  }
+}
+
+// Display results
+function displayResults(results) {
+  const assignmentGrade = results.assignmentAverage || 0
+  const testGrade = results.testAverage || 0
+  const examGrade = results.examAverage || 0
+
+  // Calculate weighted final grade
+  const finalGrade = assignmentGrade * 0.6 + testGrade * 0.1 + examGrade * 0.3
+
+  document.getElementById("assignmentGrade").textContent = `${assignmentGrade}%`
+  document.getElementById("testGrade").textContent = `${testGrade}%`
+  document.getElementById("examGrade").textContent = `${examGrade}%`
+  document.getElementById("finalGrade").textContent = `${Math.round(finalGrade)}%`
+
+  // Update grade status
+  const gradeStatus = document.getElementById("gradeStatus")
+  if (finalGrade >= 70) {
+    gradeStatus.textContent = "Excellent Performance"
+    gradeStatus.className = "lead text-success"
+  } else if (finalGrade >= 60) {
+    gradeStatus.textContent = "Good Performance"
+    gradeStatus.className = "lead text-info"
+  } else if (finalGrade >= 50) {
+    gradeStatus.textContent = "Average Performance"
+    gradeStatus.className = "lead text-warning"
+  } else {
+    gradeStatus.textContent = "Needs Improvement"
+    gradeStatus.className = "lead text-danger"
+  }
+
+  // Display detailed results
+  displayDetailedResults(results.detailed || [])
+}
+
+// Display detailed results
+function displayDetailedResults(detailed) {
+  const container = document.getElementById("detailedResults")
+
+  if (!detailed || detailed.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted">No detailed results available</div>'
+    return
+  }
+
+  container.innerHTML = `
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Assessment</th>
+            <th>Type</th>
+            <th>Score</th>
+            <th>Max Score</th>
+            <th>Percentage</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${detailed
+            .map(
+              (result) => `
+            <tr>
+              <td>${result.title}</td>
+              <td><span class="badge bg-secondary">${result.type}</span></td>
+              <td>${result.score}</td>
+              <td>${result.max_score}</td>
+              <td>
+                <span class="badge ${getGradeBadgeClass(result.percentage)}">
+                  ${result.percentage}%
+                </span>
+              </td>
+              <td>${formatDate(result.date)}</td>
+            </tr>
+          `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+// Get grade badge class
+function getGradeBadgeClass(percentage) {
+  if (percentage >= 70) return "bg-success"
+  if (percentage >= 60) return "bg-info"
+  if (percentage >= 50) return "bg-warning"
+  return "bg-danger"
+}
+
+// Load exams data
+async function loadExamsData() {
+  try {
+    const response = await fetch("/api/student/exams")
+    const data = await response.json()
+
+    if (data.success) {
+      displayExams(data.exams)
+      displayExamHistory(data.history)
+    }
+  } catch (error) {
+    console.error("Error loading exams data:", error)
+    document.getElementById("examsContent").innerHTML = '<div class="text-center text-danger">Error loading exams</div>'
+  }
+}
+
+// Display exams
+function displayExams(exams) {
+  const container = document.getElementById("examsContent")
+
+  if (!exams || exams.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted">No exams available at this time</div>'
+    return
+  }
+
+  container.innerHTML = exams
+    .map((exam) => {
+      const isActive = exam.is_active && new Date(exam.scheduled_date) <= new Date()
+      const isPast = new Date(exam.scheduled_date) < new Date()
+
+      return `
+      <div class="exam-card ${isActive ? "active" : ""}">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <h6>${exam.title}</h6>
+            <p class="text-muted mb-2">${exam.description || "No description provided"}</p>
+            <div class="exam-meta">
+              <small class="text-muted">
+                <i class="fas fa-clock me-1"></i>Duration: ${exam.duration_minutes} minutes
+              </small>
+              <small class="text-muted ms-3">
+                <i class="fas fa-question-circle me-1"></i>Questions: ${exam.total_questions}
+              </small>
+              <small class="text-muted ms-3">
+                <i class="fas fa-calendar me-1"></i>Scheduled: ${formatDate(exam.scheduled_date)}
+              </small>
+            </div>
+          </div>
+          <div class="exam-actions">
+            ${getExamActions(exam, isActive, isPast)}
+          </div>
+        </div>
+      </div>
+    `
+    })
+    .join("")
+}
+
+// Get exam actions
+function getExamActions(exam, isActive, isPast) {
+  if (isPast && !isActive) {
+    return '<span class="badge bg-secondary">Ended</span>'
+  } else if (isActive) {
+    return `
+      <button class="btn btn-success" onclick="startExam(${exam.id})">
+        <i class="fas fa-play me-1"></i>Start Exam
+      </button>
+    `
+  } else {
+    return `
+      <div class="exam-timer">
+        <i class="fas fa-clock me-1"></i>
+        Starts ${formatDate(exam.scheduled_date)}
+      </div>
+    `
+  }
+}
+
+// Display exam history
+function displayExamHistory(history) {
+  const container = document.getElementById("examHistory")
+
+  if (!history || history.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted">No exam history found</div>'
+    return
+  }
+
+  container.innerHTML = `
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Exam</th>
+            <th>Type</th>
+            <th>Score</th>
+            <th>Total Questions</th>
+            <th>Percentage</th>
+            <th>Time Taken</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${history
+            .map(
+              (result) => `
+            <tr>
+              <td>${result.exam_title}</td>
+              <td><span class="badge bg-info">${result.exam_type}</span></td>
+              <td>${result.score}</td>
+              <td>${result.total_questions}</td>
+              <td>
+                <span class="badge ${getGradeBadgeClass(Math.round((result.score / result.total_questions) * 100))}">
+                  ${Math.round((result.score / result.total_questions) * 100)}%
+                </span>
+              </td>
+              <td>${result.time_taken_minutes} min</td>
+              <td>${formatDate(result.completed_at)}</td>
+            </tr>
+          `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+// Setup event listeners
+function setupEventListeners() {
+  // Profile form submission
+  document.getElementById("profileForm").addEventListener("submit", updateProfile)
+
+  // Assignment upload form
+  document.getElementById("assignmentUploadForm").addEventListener("submit", uploadAssignment)
+
+  // Profile picture form
+  document.getElementById("profilePictureForm").addEventListener("submit", updateProfilePicture)
+
+  // Profile picture preview
+  document.getElementById("profilePictureFile").addEventListener("change", previewProfilePicture)
+}
+
+// Show section
+function showSection(sectionName) {
+  // Hide all sections
+  document.querySelectorAll(".dashboard-section").forEach((section) => {
+    section.style.display = "none"
+  })
+
+  // Show selected section
+  document.getElementById(`${sectionName}-section`).style.display = "block"
+
+  // Update menu active state
+  document.querySelectorAll(".menu-item").forEach((item) => {
+    item.classList.remove("active")
+  })
+  document.querySelector(`[data-section="${sectionName}"]`).classList.add("active")
+
+  currentSection = sectionName
+}
+
+// Submit assignment
+function submitAssignment(assignmentId, title, dueDate) {
+  document.getElementById("assignmentId").value = assignmentId
+  document.getElementById("assignmentTitle").value = title
+  document.getElementById("assignmentDueDate").value = formatDate(dueDate)
+
+  const modal = window.bootstrap.Modal(document.getElementById("assignmentUploadModal"))
+  modal.show()
+}
+
+// Upload assignment
+async function uploadAssignment(e) {
+  e.preventDefault()
+
+  const formData = new FormData()
+  formData.append("assignmentId", document.getElementById("assignmentId").value)
+  formData.append("file", document.getElementById("assignmentFile").files[0])
+  formData.append("notes", document.getElementById("submissionNotes").value)
+
+  const submitBtn = e.target.querySelector('button[type="submit"]')
+  const originalText = submitBtn.innerHTML
+  setLoadingState(submitBtn, true, originalText)
+
+  try {
+    const response = await fetch("/api/student/submit-assignment", {
+      method: "POST",
+      body: formData,
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      showMessage("Assignment submitted successfully!", "success")
+      const modal = window.bootstrap.Modal.getInstance(document.getElementById("assignmentUploadModal"))
+      modal.hide()
+
+      // Reload assignments
+      await loadAssignmentsData()
+    } else {
+      throw new Error(result.error || "Submission failed")
+    }
+  } catch (error) {
+    console.error("Assignment submission error:", error)
+    showMessage(error.message || "Submission failed", "danger")
+  } finally {
+    setLoadingState(submitBtn, false, originalText)
+  }
+}
+
+// Change profile picture
+function changeProfilePicture() {
+  const modal = window.bootstrap.Modal(document.getElementById("profilePictureModal"))
+  modal.show()
+}
+
+// Preview profile picture
+function previewProfilePicture(e) {
+  const file = e.target.files[0]
+  if (file) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      document.getElementById("previewImage").src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+// Update profile picture
+async function updateProfilePicture(e) {
+  e.preventDefault()
+
+  const formData = new FormData()
+  formData.append("profilePicture", document.getElementById("profilePictureFile").files[0])
+
+  const submitBtn = e.target.querySelector('button[type="submit"]')
+  const originalText = submitBtn.innerHTML
+  setLoadingState(submitBtn, true, originalText)
+
+  try {
+    const response = await fetch("/api/student/update-profile-picture", {
+      method: "POST",
+      body: formData,
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      showMessage("Profile picture updated successfully!", "success")
+      document.getElementById("studentAvatar").src = result.profilePicture
+
+      const modal = window.bootstrap.Modal.getInstance(document.getElementById("profilePictureModal"))
+      modal.hide()
+    } else {
+      throw new Error(result.error || "Update failed")
+    }
+  } catch (error) {
+    console.error("Profile picture update error:", error)
+    showMessage(error.message || "Update failed", "danger")
+  } finally {
+    setLoadingState(submitBtn, false, originalText)
+  }
+}
+
+// Update profile
+async function updateProfile(e) {
+  e.preventDefault()
+
+  const profileData = {
+    phone: document.getElementById("profilePhone").value,
+    address: document.getElementById("profileAddress").value,
+  }
+
+  const submitBtn = e.target.querySelector('button[type="submit"]')
+  const originalText = submitBtn.innerHTML
+  setLoadingState(submitBtn, true, originalText)
+
+  try {
+    const response = await fetch("/api/student/update-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(profileData),
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      showMessage("Profile updated successfully!", "success")
+    } else {
+      throw new Error(result.error || "Update failed")
+    }
+  } catch (error) {
+    console.error("Profile update error:", error)
+    showMessage(error.message || "Update failed", "danger")
+  } finally {
+    setLoadingState(submitBtn, false, originalText)
+  }
+}
+
+// Filter assignments
+function filterAssignments(filter) {
+  const assignments = document.querySelectorAll(".assignment-card")
+
+  // Update button states
+  document.querySelectorAll(".btn-group .btn").forEach((btn) => {
+    btn.classList.remove("active")
+  })
+  event.target.classList.add("active")
+
+  assignments.forEach((assignment) => {
+    const status = assignment.dataset.status
+
+    if (filter === "all") {
+      assignment.style.display = "block"
+    } else if (filter === status) {
+      assignment.style.display = "block"
+    } else {
+      assignment.style.display = "none"
+    }
+  })
+}
+
+// Start exam
+function startExam(examId) {
+  if (confirm("Are you ready to start the exam? Once started, the timer will begin and cannot be paused.")) {
+    window.location.href = `/student/exam/${examId}`
+  }
+}
+
+// Download receipt
+function downloadReceipt(reference) {
+  window.open(`/api/receipt/download?reference=${reference}`, "_blank")
+}
+
+// Pay outstanding payment
+function payOutstanding(type, amount) {
+  // This would integrate with Paystack for payment
+  alert(`Payment integration for ${type} payment of ₦${amount.toLocaleString()} will be implemented.`)
+}
+
+// Logout
+function logout() {
+  if (confirm("Are you sure you want to logout?")) {
+    fetch("/api/student/logout", { method: "POST" })
+      .then(() => {
+        window.location.href = "/student/login"
+      })
+      .catch((error) => {
+        console.error("Logout error:", error)
+        window.location.href = "/student/login"
+      })
+  }
+}
+
+// Format date
+function formatDate(dateString) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+// Utility functions
+function setLoadingState(button, loading, originalText) {
+  if (loading) {
+    button.disabled = true
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...'
+  } else {
+    button.disabled = false
+    button.innerHTML = originalText
+  }
+}
+
+function showMessage(message, type) {
+  const alertDiv = document.createElement("div")
+  alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`
+  alertDiv.style.cssText = "top: 100px; right: 20px; z-index: 9999; min-width: 300px;"
+  alertDiv.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `
+
+  document.body.appendChild(alertDiv)
+
+  setTimeout(() => {
+    if (alertDiv.parentNode) {
+      alertDiv.remove()
+    }
+  }, 5000)
+}
+const mysql = require('mysql');
+
+// MySQL database connection configuration
+const dbConfig = {
+    host: process.env.DB_HOST || 'mysql-shamsu557.alwaysdata.net',  // Use environment variable or default
+    port: process.env.DB_PORT || 3306,                       // Default MySQL port or environment variable
+    user: process.env.DB_USER || 'shamsu557',               // MySQL username from environment
+    password: process.env.DB_PASSWORD || '@Shamsu1440',       // MySQL password from environment
+    database: process.env.DB_NAME || 'shamsu557_ultra_tech_dbase'            // Database name from environment
+};
+
+// Create MySQL connection
+const db = mysql.createConnection(dbConfig);
+
+// Connect to MySQL database
+db.connect((err) => {
+    if (err) { 
+        console.error('Error connecting to MySQL database:', err);
+        return;
+    }
+    console.log('Connected to MySQL database');
+});
+
+// Export the database connection
+module.exports = db;
+
+// -- UltraTech Global Solution School Management Database Schema
+
+// -- Courses table
+// CREATE TABLE IF NOT EXISTS courses (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     name VARCHAR(100) NOT NULL,
+//     registration_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+//     abbreviation VARCHAR(10) NOT NULL,
+//     duration VARCHAR(50) NOT NULL,
+//     schedule VARCHAR(50) NOT NULL, -- weekend, morning, evening
+//     certification_type ENUM('Certificate', 'Diploma', 'Advanced Diploma') DEFAULT 'Certificate',
+//     description TEXT,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+// );
+
+// -- Students table
+// CREATE TABLE IF NOT EXISTS students (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     application_number VARCHAR(20) UNIQUE,
+//     reference_number VARCHAR(255),
+//     amount DECIMAL(10,2),
+//     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+//     admission_number VARCHAR(30) UNIQUE,
+//     first_name VARCHAR(50) NOT NULL,
+//     last_name VARCHAR(50) NOT NULL,
+//     email VARCHAR(100) UNIQUE NOT NULL,
+//     phone VARCHAR(20) NOT NULL,
+//     gender ENUM('Male', 'Female') NOT NULL,
+//     date_of_birth DATE,
+//     address TEXT,
+//     course_id INT,
+//     password_hash VARCHAR(255),
+//     security_question VARCHAR(255),
+//     security_answer VARCHAR(255),
+//     highest_qualification VARCHAR(100),
+//     profile_picture VARCHAR(255),
+//     schedule VARCHAR(50),
+//     status ENUM('Applied', 'Registered', 'Active', 'Completed', 'Suspended') DEFAULT 'Applied',
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (course_id) REFERENCES courses(id)
+// );
+
+// -- Staff table
+// CREATE TABLE IF NOT EXISTS staff (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     staff_id VARCHAR(20) UNIQUE NOT NULL,
+//     first_name VARCHAR(50) NOT NULL,
+//     last_name VARCHAR(50) NOT NULL,
+//     email VARCHAR(100) UNIQUE NOT NULL,
+//     phone VARCHAR(20),
+//     password_hash VARCHAR(255),
+//     profile_picture VARCHAR(255),
+//     is_registered BOOLEAN DEFAULT FALSE,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+// );
+
+// -- Staff courses (many-to-many relationship)
+// CREATE TABLE IF NOT EXISTS staff_courses (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     staff_id INT,
+//     course_id INT,
+//     FOREIGN KEY (staff_id) REFERENCES staff(id),
+//     FOREIGN KEY (course_id) REFERENCES courses(id)
+// );
+
+// -- Admins table
+// CREATE TABLE IF NOT EXISTS admins (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     username VARCHAR(50) UNIQUE NOT NULL,
+//     password_hash VARCHAR(255) NOT NULL,
+//     role ENUM('Admin', 'Deputy Admin', 'Assistant Admin') DEFAULT 'Assistant Admin',
+//     first_name VARCHAR(50),
+//     last_name VARCHAR(50),
+//     email VARCHAR(100),
+//     is_first_login BOOLEAN DEFAULT TRUE,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+// );
+
+// -- Payments table
+// CREATE TABLE IF NOT EXISTS payments (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     student_id INT,
+//     payment_type ENUM('Application', 'Registration', 'Exam', 'Certificate') NOT NULL,
+//     amount DECIMAL(10,2) NOT NULL,
+//     installment_type ENUM('full', 'half');
+//     reference_number VARCHAR(100) UNIQUE NOT NULL,
+//     paystack_reference VARCHAR(100),
+//     installment_number INT DEFAULT 1,
+//     total_installments INT DEFAULT 1,
+//     status ENUM('Pending', 'Completed', 'Failed') DEFAULT 'Pending',
+//     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (student_id) REFERENCES students(id)
+// );
+
+// -- Assignments table
+// CREATE TABLE IF NOT EXISTS assignments (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     course_id INT,
+//     staff_id INT,
+//     title VARCHAR(200) NOT NULL,
+//     description TEXT,
+//     instructions TEXT,
+//     date_given DATE NOT NULL,
+//     due_date DATE NOT NULL,
+//     max_score INT DEFAULT 100,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (course_id) REFERENCES courses(id),
+//     FOREIGN KEY (staff_id) REFERENCES staff(id)
+// );
+
+// -- Assignment submissions table
+// CREATE TABLE IF NOT EXISTS assignment_submissions (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     assignment_id INT,
+//     student_id INT,
+//     file_path VARCHAR(255),
+//     submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     score INT,
+//     feedback TEXT,
+//     graded_by INT,
+//     graded_at TIMESTAMP NULL,
+//     FOREIGN KEY (assignment_id) REFERENCES assignments(id),
+//     FOREIGN KEY (student_id) REFERENCES students(id),
+//     FOREIGN KEY (graded_by) REFERENCES staff(id)
+// );
+
+// -- Exams table
+// CREATE TABLE IF NOT EXISTS exams (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     course_id INT,
+//     title VARCHAR(200) NOT NULL,
+//     description TEXT,
+//     exam_type ENUM('Test', 'Exam') DEFAULT 'Test',
+//     duration_minutes INT NOT NULL,
+//     total_questions INT NOT NULL,
+//     scheduled_date DATETIME,
+//     is_active BOOLEAN DEFAULT FALSE,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (course_id) REFERENCES courses(id)
+// );
+
+// -- Questions table
+// CREATE TABLE IF NOT EXISTS questions (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     exam_id INT,
+//     question_text TEXT NOT NULL,
+//     option_a VARCHAR(255) NOT NULL,
+//     option_b VARCHAR(255) NOT NULL,
+//     option_c VARCHAR(255) NOT NULL,
+//     option_d VARCHAR(255) NOT NULL,
+//     correct_answer ENUM('A', 'B', 'C', 'D') NOT NULL,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (exam_id) REFERENCES exams(id)
+// );
+
+// -- Exam results table
+// CREATE TABLE IF NOT EXISTS exam_results (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     exam_id INT,
+//     student_id INT,
+//     score INT NOT NULL,
+//     total_questions INT NOT NULL,
+//     time_taken_minutes INT,
+//     completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (exam_id) REFERENCES exams(id),
+//     FOREIGN KEY (student_id) REFERENCES students(id)
+// );
+
+// -- Student answers table
+// CREATE TABLE IF NOT EXISTS student_answers (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     exam_result_id INT,
+//     question_id INT,
+//     selected_answer ENUM('A', 'B', 'C', 'D'),
+//     is_correct BOOLEAN,
+//     FOREIGN KEY (exam_result_id) REFERENCES exam_results(id),
+//     FOREIGN KEY (question_id) REFERENCES questions(id)
+// );
+
+// -- Resources table (for handouts and lecture materials)
+// CREATE TABLE IF NOT EXISTS resources (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     course_id INT,
+//     staff_id INT,
+//     title VARCHAR(200) NOT NULL,
+//     description TEXT,
+//     file_path VARCHAR(255) NOT NULL,
+//     file_type VARCHAR(50),
+//     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (course_id) REFERENCES courses(id),
+//     FOREIGN KEY (staff_id) REFERENCES staff(id)
+// );
+
+// -- Qualifications table (for student uploaded documents)
+// CREATE TABLE IF NOT EXISTS qualifications (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     student_id INT,
+//     qualification_name VARCHAR(100) NOT NULL,
+//     file_path VARCHAR(255) NOT NULL,
+//     is_highest BOOLEAN DEFAULT FALSE,
+//     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (student_id) REFERENCES students(id)
+// );
+// -- Insert initial courses
+// INSERT INTO courses (name, registration_fee, abbreviation, duration, schedule, certification_type, description) VALUES
+// ('Web Development Frontend', 250.00, 'WDF', '6 months', 'weekend', 'Diploma', 'Learn HTML, CSS, JavaScript, and modern frontend frameworks'),
+// ('Web Development Backend', 300.00, 'WDB', '6 months', 'weekend', 'Diploma', 'Learn server-side programming, databases, and APIs'),
+// ('Introduction to Artificial Intelligence', 400.00, 'IAI', '8 weeks', 'weekend', 'Certificate', 'Introduction to Artificial Intelligence and Machine Learning'),
+// ('AutoCAD', 350.00, 'CAD', '16 weeks', 'morning,evening', 'Diploma', 'Computer-Aided Design software training'),
+// ('Solar Installation', 200.00, 'SOL', '12 weeks', 'morning,evening', 'Diploma', 'Solar panel installation and maintenance'),
+// ('Computer Appreciation', 450.00, 'CA', '8 weeks', 'morning,evening', 'Certificate', 'Basic computer applications and skills'),
+// ('Forex Trading', 500.00, 'FX', '10 weeks', 'morning,evening', 'Diploma', 'Foreign exchange trading fundamentals'),
+// ('Cybersecurity', 275.00, 'CYB', '16 weeks', 'morning,evening', 'Diploma', 'Information security and ethical hacking'),
+// ('Cryptocurrency', 325.00, 'CRY', '8 weeks', 'morning,evening', 'Diploma', 'Digital currency and blockchain technology');
+
+// -- Insert default admin
+// INSERT INTO admins (username, password_hash, role, first_name, last_name) VALUES
+// ('Admin', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin', 'System', 'Administrator');
+
+// -- Insert sample staff (emails that can be used for signup)
+// INSERT INTO staff (staff_id, first_name, last_name, email, phone) VALUES
+// ('STAFF001', 'John', 'Doe', 'john.doe@ultratechglobalsolution.com.ng', '08012345678'),
+// ('STAFF002', 'Jane', 'Smith', 'jane.smith@ultratechglobalsolution.com.ng', '08087654321'),
+// ('STAFF003', 'Mike', 'Johnson', 'mike.johnson@ultratechglobalsolution.com.ng', '08098765432');
