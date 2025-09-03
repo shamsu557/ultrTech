@@ -1,824 +1,616 @@
-// Student Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', () => {
+      const contentArea = document.getElementById('contentArea');
+      const contentError = document.getElementById('contentError');
+      const contentLoading = document.getElementById('contentLoading');
+      const navLinks = document.querySelectorAll('.sidebar .nav-link:not(#logoutBtn)');
+      const pageTitle = document.getElementById('pageTitle');
+      const sidebarProfilePic = document.getElementById('sidebarProfilePic');
+      const studentName = document.getElementById('studentName');
+      const studentCourse = document.getElementById('studentCourse');
 
-let currentStudent = null
-let currentSection = "overview"
+      const showLoading = () => {
+        contentArea.innerHTML = '';
+        contentError.textContent = '';
+        contentLoading.style.display = 'block';
+      };
 
-document.addEventListener("DOMContentLoaded", () => {
-  checkAuthentication()
-  loadStudentData()
-  setupEventListeners()
-})
+      const setSidebarInfo = (student) => {
+        sidebarProfilePic.src = student.profile_picture || '/uploads/default.png';
+        studentName.textContent = `${student.first_name} ${student.last_name}`;
+        studentCourse.textContent = student.course_name || 'N/A';
+      };
 
-// Check if student is authenticated
-async function checkAuthentication() {
-  try {
-    const response = await fetch("/api/student/profile")
-    if (!response.ok) {
-      window.location.href = "/student/login"
-      return
-    }
-    const result = await response.json()
-    currentStudent = result.student
-    updateStudentInfo(currentStudent)
-  } catch (error) {
-    console.error("Authentication check failed:", error)
-    window.location.href = "/student/login"
-  }
-}
+      const loadSection = (section) => {
+        showLoading();
+        navLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = document.querySelector(`.nav-link[data-section="${section}"]`);
+        if (activeLink) activeLink.classList.add('active');
+        pageTitle.textContent = activeLink ? activeLink.textContent : 'Dashboard';
 
-// Update student information in UI
-function updateStudentInfo(student) {
-  document.getElementById("studentName").textContent = `${student.first_name} ${student.last_name}`
-  document.getElementById("sidebarStudentName").textContent = `${student.first_name} ${student.last_name}`
-  document.getElementById("admissionNumber").textContent = student.admission_number || student.application_number
-  document.getElementById("courseName").textContent = student.course_name || "Course Info Loading..."
-
-  if (student.profile_picture) {
-    document.getElementById("studentAvatar").src = student.profile_picture
-  }
-}
-
-// Load student data for dashboard
-async function loadStudentData() {
-  await Promise.all([
-    loadOverviewData(),
-    loadProfileData(),
-    loadPaymentsData(),
-    loadAssignmentsData(),
-    loadResultsData(),
-    loadExamsData(),
-  ])
-}
-
-// Load overview data
-async function loadOverviewData() {
-  try {
-    const response = await fetch("/api/student/overview")
-    const data = await response.json()
-
-    if (data.success) {
-      document.getElementById("totalAssignments").textContent = data.stats.totalAssignments
-      document.getElementById("completedAssignments").textContent = data.stats.completedAssignments
-      document.getElementById("overallGrade").textContent = `${data.stats.overallGrade}%`
-      document.getElementById("upcomingExams").textContent = data.stats.upcomingExams
-
-      displayRecentActivities(data.recentActivities)
-    }
-  } catch (error) {
-    console.error("Error loading overview data:", error)
-  }
-}
-
-// Display recent activities
-function displayRecentActivities(activities) {
-  const container = document.getElementById("recentActivities")
-
-  if (!activities || activities.length === 0) {
-    container.innerHTML = '<div class="text-center text-muted">No recent activities</div>'
-    return
-  }
-
-  container.innerHTML = activities
-    .map(
-      (activity) => `
-    <div class="activity-item">
-      <div class="activity-icon ${activity.type}">
-        <i class="fas ${getActivityIcon(activity.type)}"></i>
-      </div>
-      <div class="activity-content">
-        <h6 class="mb-1">${activity.title}</h6>
-        <p class="mb-0 text-muted">${activity.description}</p>
-        <small class="activity-time">${formatDate(activity.created_at)}</small>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-}
-
-// Get activity icon
-function getActivityIcon(type) {
-  const icons = {
-    assignment: "fa-tasks",
-    exam: "fa-clipboard-check",
-    payment: "fa-credit-card",
-    result: "fa-chart-bar",
-  }
-  return icons[type] || "fa-info-circle"
-}
-
-// Load profile data
-async function loadProfileData() {
-  if (!currentStudent) return
-
-  document.getElementById("profileFirstName").value = currentStudent.first_name
-  document.getElementById("profileLastName").value = currentStudent.last_name
-  document.getElementById("profileEmail").value = currentStudent.email
-  document.getElementById("profilePhone").value = currentStudent.phone || ""
-  document.getElementById("profileGender").value = currentStudent.gender
-  document.getElementById("profileDOB").value = currentStudent.date_of_birth
-  document.getElementById("profileAddress").value = currentStudent.address || ""
-  document.getElementById("profileCourse").value = currentStudent.course_name || ""
-  document.getElementById("profileAdmissionNumber").value =
-    currentStudent.admission_number || currentStudent.application_number
-  document.getElementById("profileStatus").value = currentStudent.status
-}
-
-// Load payments data
-async function loadPaymentsData() {
-  try {
-    const response = await fetch("/api/student/payments")
-    const data = await response.json()
-
-    if (data.success) {
-      displayPayments(data.payments)
-      displayOutstandingPayments(data.outstanding)
-    }
-  } catch (error) {
-    console.error("Error loading payments data:", error)
-    document.getElementById("paymentsContent").innerHTML =
-      '<div class="text-center text-danger">Error loading payments</div>'
-  }
-}
-
-// Display payments
-function displayPayments(payments) {
-  const container = document.getElementById("paymentsContent")
-
-  if (!payments || payments.length === 0) {
-    container.innerHTML = '<div class="text-center text-muted">No payment history found</div>'
-    return
-  }
-
-  container.innerHTML = payments
-    .map(
-      (payment) => `
-    <div class="payment-card">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h6 class="mb-1">${payment.payment_type} Payment</h6>
-          <p class="mb-1 text-muted">Reference: ${payment.reference_number}</p>
-          <small class="text-muted">${formatDate(payment.payment_date)}</small>
-        </div>
-        <div class="text-end">
-          <h5 class="mb-1">₦${payment.amount.toLocaleString()}</h5>
-          <span class="payment-status ${payment.status.toLowerCase()}">${payment.status}</span>
-        </div>
-      </div>
-      <div class="mt-2">
-        <button class="btn btn-outline-primary btn-sm" onclick="downloadReceipt('${payment.reference_number}')">
-          <i class="fas fa-download me-1"></i>Download Receipt
-        </button>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-}
-
-// Display outstanding payments
-function displayOutstandingPayments(outstanding) {
-  const container = document.getElementById("outstandingPayments")
-
-  if (!outstanding || outstanding.length === 0) {
-    container.innerHTML = '<div class="text-center text-success">No outstanding payments</div>'
-    return
-  }
-
-  container.innerHTML = outstanding
-    .map(
-      (payment) => `
-    <div class="payment-card border-warning">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h6 class="mb-1">${payment.type} Payment</h6>
-          <p class="mb-1 text-muted">${payment.description}</p>
-          <small class="text-muted">Due: ${payment.dueDate || "Immediate"}</small>
-        </div>
-        <div class="text-end">
-          <h5 class="mb-1 text-warning">₦${payment.amount.toLocaleString()}</h5>
-          <button class="btn btn-warning btn-sm" onclick="payOutstanding('${payment.type}', ${payment.amount})">
-            <i class="fas fa-credit-card me-1"></i>Pay Now
-          </button>
-        </div>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-}
-
-// Load assignments data
-async function loadAssignmentsData() {
-  try {
-    const response = await fetch("/api/student/assignments")
-    const data = await response.json()
-
-    if (data.success) {
-      displayAssignments(data.assignments)
-    }
-  } catch (error) {
-    console.error("Error loading assignments data:", error)
-    document.getElementById("assignmentsContent").innerHTML =
-      '<div class="text-center text-danger">Error loading assignments</div>'
-  }
-}
-
-// Display assignments
-function displayAssignments(assignments) {
-  const container = document.getElementById("assignmentsContent")
-
-  if (!assignments || assignments.length === 0) {
-    container.innerHTML = '<div class="text-center text-muted">No assignments found</div>'
-    return
-  }
-
-  container.innerHTML = assignments
-    .map((assignment) => {
-      const status = getAssignmentStatus(assignment)
-      const isOverdue = new Date(assignment.due_date) < new Date() && !assignment.submitted
-
-      return `
-      <div class="assignment-card ${status} ${isOverdue ? "overdue" : ""}" data-status="${status}">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <div class="flex-grow-1">
-              <h6 class="card-title">${assignment.title}</h6>
-              <p class="card-text text-muted">${assignment.description || "No description provided"}</p>
-              <div class="assignment-meta">
-                <small class="text-muted">
-                  <i class="fas fa-calendar me-1"></i>Given: ${formatDate(assignment.date_given)}
-                </small>
-                <small class="text-muted ms-3">
-                  <i class="fas fa-clock me-1"></i>Due: ${formatDate(assignment.due_date)}
-                </small>
-                <small class="text-muted ms-3">
-                  <i class="fas fa-star me-1"></i>Max Score: ${assignment.max_score}
-                </small>
-              </div>
-            </div>
-            <div class="assignment-actions">
-              ${getAssignmentActions(assignment, status, isOverdue)}
-            </div>
-          </div>
-          ${
-            assignment.submission
-              ? `
-            <div class="submission-info mt-3 p-2 bg-light rounded">
-              <small class="text-success">
-                <i class="fas fa-check-circle me-1"></i>
-                Submitted on ${formatDate(assignment.submission.submission_date)}
-              </small>
-              ${
-                assignment.submission.score !== null
-                  ? `
-                <div class="mt-1">
-                  <strong>Score: ${assignment.submission.score}/${assignment.max_score}</strong>
-                  ${
-                    assignment.submission.feedback
-                      ? `
-                    <div class="mt-1">
-                      <small class="text-muted">Feedback: ${assignment.submission.feedback}</small>
+        const sectionHandlers = {
+          profile: () => {
+            fetch('/api/student/profile', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  const student = data.student;
+                  setSidebarInfo(student);
+                  contentArea.innerHTML = `
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-user-circle me-2"></i>My Profile</div>
+                      <div class="card-body row align-items-center">
+                        <div class="col-md-3 text-center mb-3 mb-md-0">
+                          <img src="${student.profile_picture || '/uploads/default.png'}" class="profile-img" alt="Profile Picture">
+                        </div>
+                        <div class="col-md-9">
+                          <h4 class="card-title">${student.first_name} ${student.last_name}</h4>
+                          <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><strong>Admission No:</strong> ${student.admission_number || 'N/A'}</li>
+                            <li class="list-group-item"><strong>Email:</strong> ${student.email || 'N/A'}</li>
+                            <li class="list-group-item"><strong>Phone:</strong> ${student.phone || 'N/A'}</li>
+                            <li class="list-group-item"><strong>Address:</strong> ${student.address || 'N/A'}</li>
+                            <li class="list-group-item"><strong>Course:</strong> ${student.course_name || 'N/A'}</li>
+                          </ul>
+                        </div>
+                      </div>
                     </div>
-                  `
-                      : ""
+                  `;
+                } else {
+                  contentError.textContent = data.error || 'Failed to load profile';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading profile';
+                console.error('Profile fetch error:', error);
+              });
+          },
+          overview: () => {
+            fetch('/api/student-overview', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  const stats = data.stats;
+                  contentArea.innerHTML = `
+                    <div class="row">
+                      <div class="col-md-3">
+                        <div class="card stat-card">
+                          <div class="card-body">
+                            <h3>${stats.totalAssignments || 0}</h3>
+                            <p>Total Assignments</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="card stat-card">
+                          <div class="card-body">
+                            <h3>${stats.completedAssignments || 0}</h3>
+                            <p>Completed Assignments</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="card stat-card">
+                          <div class="card-body">
+                            <h3>${stats.overallGrade || 0}%</h3>
+                            <p>Overall Grade</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="card stat-card">
+                          <div class="card-body">
+                            <h3>${stats.upcomingExams || 0}</h3>
+                            <p>Upcoming Exams</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-history me-2"></i>Recent Activities</div>
+                      <div class="card-body">
+                        <ul class="list-group list-group-flush" id="recentActivities"></ul>
+                      </div>
+                    </div>
+                  `;
+                  const activitiesList = document.getElementById('recentActivities');
+                  if (data.recentActivities.length > 0) {
+                    data.recentActivities.forEach(activity => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item';
+                      li.textContent = `${activity.type.toUpperCase()}: ${activity.title} - ${activity.description} (${new Date(activity.created_at).toLocaleString()})`;
+                      activitiesList.appendChild(li);
+                    });
+                  } else {
+                    activitiesList.innerHTML = '<li class="list-group-item text-muted">No recent activities.</li>';
                   }
-                </div>
-              `
-                  : '<div class="mt-1"><small class="text-warning">Awaiting grading</small></div>'
-              }
-            </div>
-          `
-              : ""
+                } else {
+                  contentError.textContent = data.error || 'Failed to load overview';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading overview';
+                console.error('Overview fetch error:', error);
+              });
+          },
+          assignments: () => {
+            fetch('/api/student/assignments', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  contentArea.innerHTML = `
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-tasks me-2"></i>Assignments</div>
+                      <div class="card-body">
+                        <h5>Available Assignments</h5>
+                        <ul id="assignmentList" class="list-group assignment-list mb-4"></ul>
+                      </div>
+                    </div>
+                  `;
+                  const assignmentList = document.getElementById('assignmentList');
+                  if (data.assignments.length > 0) {
+                    data.assignments.forEach(assignment => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-start flex-column';
+                      
+                      const submissionStatus = assignment.submission ? `<span class="badge bg-success">Submitted</span>` : `<span class="badge bg-warning text-dark">Pending</span>`;
+                      const submissionDetails = assignment.submission ? `
+                        <div class="mt-2 text-muted small">
+                          Submitted on: ${new Date(assignment.submission.submission_date).toLocaleString()}
+                        </div>
+                        <div class="text-muted small">Score: ${assignment.submission.score !== null ? `${assignment.submission.score}/${assignment.max_score}` : 'Not Graded'}</div>
+                        <div class="text-muted small">Feedback: ${assignment.submission.feedback || 'No feedback yet.'}</div>
+                      ` : '';
+                      
+                      const submissionForm = !assignment.submission ? `
+                        <div class="assignment-form mt-3 w-100">
+                            <h6>Submit your Assignment</h6>
+                            <form class="submit-assignment-form" data-assignment-id="${assignment.id}">
+                                <div class="mb-3">
+                                    <label for="assignmentFile-${assignment.id}" class="form-label">Upload File</label>
+                                    <input type="file" class="form-control" id="assignmentFile-${assignment.id}" name="assignmentFile" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Submit</button>
+                                <div class="submission-message mt-2" id="message-${assignment.id}"></div>
+                            </form>
+                        </div>
+                      ` : '';
+
+                      li.innerHTML = `
+                        <div>
+                            <div class="d-flex w-100 justify-content-between">
+                                <strong>${assignment.title}</strong>
+                                ${submissionStatus}
+                            </div>
+                            <div class="text-muted small">${assignment.description}</div>
+                            <div class="text-danger small">Due: ${new Date(assignment.due_date).toLocaleDateString()}</div>
+                        </div>
+                        ${submissionDetails}
+                        ${submissionForm}
+                      `;
+                      assignmentList.appendChild(li);
+                    });
+
+                    document.querySelectorAll('.submit-assignment-form').forEach(form => {
+                        form.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            const assignmentId = this.dataset.assignmentId;
+                            const formData = new FormData(this);
+                            formData.append('assignmentId', assignmentId);
+                            const messageElement = document.getElementById(`message-${assignmentId}`);
+                            messageElement.textContent = 'Submitting...';
+                            messageElement.className = 'submission-message mt-2 text-info';
+
+                            fetch('/api/student/submit-assignment', {
+                                method: 'POST',
+                                body: formData,
+                                credentials: 'include'
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    messageElement.textContent = data.message;
+                                    messageElement.className = 'submission-message mt-2 text-success';
+                                    setTimeout(() => loadSection('assignments'), 2000); // Reload section
+                                } else {
+                                    messageElement.textContent = data.message || 'Submission failed.';
+                                    messageElement.className = 'submission-message mt-2 text-danger';
+                                }
+                            })
+                            .catch(error => {
+                                messageElement.textContent = 'An error occurred during submission.';
+                                messageElement.className = 'submission-message mt-2 text-danger';
+                                console.error('Submission error:', error);
+                            });
+                        });
+                    });
+
+                  } else {
+                    assignmentList.innerHTML = '<li class="list-group-item text-muted">No assignments available.</li>';
+                  }
+                } else {
+                  contentError.textContent = data.error || 'Failed to load assignments';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading assignments';
+                console.error('Assignments fetch error:', error);
+              });
+          },
+          payments: () => {
+            fetch('/api/student/payments', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  contentArea.innerHTML = `
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-credit-card me-2"></i>Payments</div>
+                      <div class="card-body">
+                        <h5>Payment History</h5>
+                        <ul id="paymentList" class="list-group payment-list mb-4"></ul>
+                        <h5>Outstanding Payments</h5>
+                        <ul id="outstandingList" class="list-group payment-list"></ul>
+                      </div>
+                    </div>
+                  `;
+                  const paymentList = document.getElementById('paymentList');
+                  if (data.payments.length > 0) {
+                    data.payments.forEach(payment => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                      const statusClass = payment.status === 'Completed' ? 'bg-success' : payment.status === 'Pending' ? 'bg-warning text-dark' : 'bg-danger';
+                      li.innerHTML = `
+                        <div>
+                          <strong>${payment.payment_type}</strong>
+                          <div class="text-muted small">Reference: ${payment.reference_number}</div>
+                          <div class="text-muted small">Date: ${new Date(payment.payment_date).toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <strong>₦${payment.amount}</strong>
+                          <span class="badge ${statusClass} ms-2">${payment.status}</span>
+                        </div>
+                      `;
+                      paymentList.appendChild(li);
+                    });
+                  } else {
+                    paymentList.innerHTML = '<li class="list-group-item text-muted">No payment history.</li>';
+                  }
+
+                  const outstandingList = document.getElementById('outstandingList');
+                  if (data.outstanding.length > 0) {
+                    data.outstanding.forEach(outstanding => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                      li.innerHTML = `
+                        <div>
+                          <strong>${outstanding.type}</strong>
+                          <div class="text-muted small">${outstanding.description}</div>
+                        </div>
+                        <div>
+                          <strong>₦${outstanding.amount}</strong>
+                          <span class="badge bg-danger ms-2">Outstanding</span>
+                        </div>
+                      `;
+                      outstandingList.appendChild(li);
+                    });
+                  } else {
+                    outstandingList.innerHTML = '<li class="list-group-item text-muted">No outstanding payments.</li>';
+                  }
+                } else {
+                  contentError.textContent = data.error || 'Failed to load payments';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading payments';
+                console.error('Payments fetch error:', error);
+              });
+          },
+          progress: () => {
+            fetch('/api/student/progress', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  contentArea.innerHTML = `
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-chart-bar me-2"></i>My Progress</div>
+                      <div class="card-body">
+                          <p class="text-muted">A visual summary of your academic performance.</p>
+                          <canvas id="progressChart"></canvas>
+                      </div>
+                    </div>
+                  `;
+                  const ctx = document.getElementById('progressChart').getContext('2d');
+                  const chartData = {
+                      labels: ['Assignments', 'Tests', 'Exams'],
+                      datasets: [{
+                          label: 'Average Score (%)',
+                          data: [data.assignmentAverage, data.testAverage, data.examAverage],
+                          backgroundColor: ['#007bff', '#28a745', '#dc3545'],
+                          borderColor: ['#007bff', '#28a745', '#dc3545'],
+                          borderWidth: 1
+                      }]
+                  };
+                  new Chart(ctx, {
+                      type: 'bar',
+                      data: chartData,
+                      options: {
+                          scales: {
+                              y: {
+                                  beginAtZero: true,
+                                  max: 100,
+                                  ticks: {
+                                      callback: function(value) {
+                                          return value + '%';
+                                      }
+                                  }
+                              }
+                          },
+                          plugins: {
+                              legend: {
+                                  display: false
+                              }
+                          },
+                          responsive: true,
+                          maintainAspectRatio: false
+                      }
+                  });
+                } else {
+                  contentError.textContent = data.error || 'Failed to load progress data';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading progress data';
+                console.error('Progress fetch error:', error);
+              });
+          },
+          exams: () => {
+            fetch('/api/student/exams', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  contentArea.innerHTML = `
+                    <div class="card mb-4">
+                      <div class="card-header"><i class="fas fa-pencil-alt me-2"></i>Upcoming Exams</div>
+                      <div class="card-body">
+                        <ul id="examList" class="list-group exam-list"></ul>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-poll me-2"></i>Exam History</div>
+                      <div class="card-body">
+                        <ul id="examHistory" class="list-group exam-list"></ul>
+                      </div>
+                    </div>
+                  `;
+                  const examList = document.getElementById('examList');
+                  const upcomingExams = data.exams.filter(e => new Date(e.scheduled_date) > new Date());
+                  if (upcomingExams.length > 0) {
+                    upcomingExams.forEach(exam => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                      li.innerHTML = `
+                        <div>
+                          <strong>${exam.title} (${exam.exam_type})</strong>
+                          <div class="text-muted small">Scheduled: ${new Date(exam.scheduled_date).toLocaleString()}</div>
+                          <div class="text-muted small">Duration: ${exam.duration_minutes} mins</div>
+                        </div>
+                        <span class="badge bg-primary">Upcoming</span>
+                      `;
+                      examList.appendChild(li);
+                    });
+                  } else {
+                    examList.innerHTML = '<li class="list-group-item text-muted">No upcoming exams.</li>';
+                  }
+
+                  const examHistory = document.getElementById('examHistory');
+                  if (data.history.length > 0) {
+                    data.history.forEach(record => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                      const scorePercentage = Math.round((record.score / record.total_questions) * 100);
+                      const scoreClass = scorePercentage >= 70 ? 'bg-success' : scorePercentage >= 50 ? 'bg-warning text-dark' : 'bg-danger';
+                      li.innerHTML = `
+                        <div>
+                          <strong>${record.exam_title} (${record.exam_type})</strong>
+                          <div class="text-muted small">Completed: ${new Date(record.completed_at).toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <span class="badge ${scoreClass} ms-2">${record.score}/${record.total_questions} (${scorePercentage}%)</span>
+                        </div>
+                      `;
+                      examHistory.appendChild(li);
+                    });
+                  } else {
+                    examHistory.innerHTML = '<li class="list-group-item text-muted">No exam history.</li>';
+                  }
+                } else {
+                  contentError.textContent = data.error || 'Failed to load exams';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading exams';
+                console.error('Exams fetch error:', error);
+              });
+          },
+          results: () => {
+            fetch('/api/student/results', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  contentArea.innerHTML = `
+                    <div class="card mb-4">
+                      <div class="card-header"><i class="fas fa-poll me-2"></i>Overall Performance</div>
+                      <div class="card-body row text-center">
+                        <div class="col-md-4">
+                          <p class="mb-0 text-muted">Assignment Avg</p>
+                          <h4 class="text-primary">${data.results.assignmentAverage || 0}%</h4>
+                        </div>
+                        <div class="col-md-4">
+                          <p class="mb-0 text-muted">Test Avg</p>
+                          <h4 class="text-primary">${data.results.testAverage || 0}%</h4>
+                        </div>
+                        <div class="col-md-4">
+                          <p class="mb-0 text-muted">Exam Avg</p>
+                          <h4 class="text-primary">${data.results.examAverage || 0}%</h4>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-list-ol me-2"></i>Detailed Results</div>
+                      <div class="card-body">
+                        <ul id="resultList" class="list-group result-list"></ul>
+                      </div>
+                    </div>
+                  `;
+                  const resultList = document.getElementById('resultList');
+                  if (data.results.detailed.length > 0) {
+                    data.results.detailed.forEach(result => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                      const scoreClass = result.percentage >= 70 ? 'bg-success' : result.percentage >= 50 ? 'bg-warning text-dark' : 'bg-danger';
+                      li.innerHTML = `
+                        <div>
+                          <strong>${result.title}</strong>
+                          <div class="text-muted small">${result.type}</div>
+                          <div class="text-muted small">Date: ${new Date(result.date).toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <span class="badge ${scoreClass} ms-2">${result.score}/${result.max_score} (${result.percentage}%)</span>
+                        </div>
+                      `;
+                      resultList.appendChild(li);
+                    });
+                  } else {
+                    resultList.innerHTML = '<li class="list-group-item text-muted">No results available.</li>';
+                  }
+                } else {
+                  contentError.textContent = data.error || 'Failed to load results';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading results';
+                console.error('Results fetch error:', error);
+              });
+          },
+          resources: () => {
+            fetch('/api/student/resources', { method: 'GET', credentials: 'include' })
+              .then(response => {
+                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
+                return response.json();
+              })
+              .then(data => {
+                contentLoading.style.display = 'none';
+                if (data.success) {
+                  contentArea.innerHTML = `
+                    <div class="card">
+                      <div class="card-header"><i class="fas fa-book me-2"></i>Resources</div>
+                      <div class="card-body">
+                        <ul id="resourceList" class="list-group resource-list"></ul>
+                      </div>
+                    </div>
+                  `;
+                  const resourceList = document.getElementById('resourceList');
+                  if (data.resources.length > 0) {
+                    data.resources.forEach(resource => {
+                      const li = document.createElement('li');
+                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                      li.innerHTML = `
+                        <div>
+                          <strong>${resource.title}</strong>
+                          <div class="text-muted small">${resource.description}</div>
+                          <div class="text-muted small">Uploaded by ${resource.uploaded_by} on ${new Date(resource.uploaded_at).toLocaleString()}</div>
+                        </div>
+                        <a href="${resource.file_path}" target="_blank" class="btn btn-sm btn-primary"><i class="fas fa-download me-1"></i>Download</a>
+                      `;
+                      resourceList.appendChild(li);
+                    });
+                  } else {
+                    resourceList.innerHTML = '<li class="list-group-item text-muted">No resources available.</li>';
+                  }
+                } else {
+                  contentError.textContent = data.error || 'Failed to load resources';
+                }
+              })
+              .catch(error => {
+                contentLoading.style.display = 'none';
+                contentError.textContent = 'Error loading resources';
+                console.error('Resources fetch error:', error);
+              });
           }
-        </div>
-      </div>
-    `
-    })
-    .join("")
-}
-
-// Get assignment status
-function getAssignmentStatus(assignment) {
-  if (assignment.submission) {
-    return assignment.submission.score !== null ? "graded" : "submitted"
-  }
-  return "pending"
-}
-
-// Get assignment actions
-function getAssignmentActions(assignment, status, isOverdue) {
-  if (status === "graded") {
-    return `<span class="badge bg-success">Graded</span>`
-  } else if (status === "submitted") {
-    return `<span class="badge bg-info">Submitted</span>`
-  } else if (isOverdue) {
-    return `<span class="badge bg-danger">Overdue</span>`
-  } else {
-    return `
-      <button class="btn btn-primary btn-sm" onclick="submitAssignment(${assignment.id}, '${assignment.title}', '${assignment.due_date}')">
-        <i class="fas fa-upload me-1"></i>Submit
-      </button>
-    `
-  }
-}
-
-// Load results data
-async function loadResultsData() {
-  try {
-    const response = await fetch("/api/student/results")
-    const data = await response.json()
-
-    if (data.success) {
-      displayResults(data.results)
-    }
-  } catch (error) {
-    console.error("Error loading results data:", error)
-  }
-}
-
-// Display results
-function displayResults(results) {
-  const assignmentGrade = results.assignmentAverage || 0
-  const testGrade = results.testAverage || 0
-  const examGrade = results.examAverage || 0
-
-  // Calculate weighted final grade
-  const finalGrade = assignmentGrade * 0.6 + testGrade * 0.1 + examGrade * 0.3
-
-  document.getElementById("assignmentGrade").textContent = `${assignmentGrade}%`
-  document.getElementById("testGrade").textContent = `${testGrade}%`
-  document.getElementById("examGrade").textContent = `${examGrade}%`
-  document.getElementById("finalGrade").textContent = `${Math.round(finalGrade)}%`
-
-  // Update grade status
-  const gradeStatus = document.getElementById("gradeStatus")
-  if (finalGrade >= 70) {
-    gradeStatus.textContent = "Excellent Performance"
-    gradeStatus.className = "lead text-success"
-  } else if (finalGrade >= 60) {
-    gradeStatus.textContent = "Good Performance"
-    gradeStatus.className = "lead text-info"
-  } else if (finalGrade >= 50) {
-    gradeStatus.textContent = "Average Performance"
-    gradeStatus.className = "lead text-warning"
-  } else {
-    gradeStatus.textContent = "Needs Improvement"
-    gradeStatus.className = "lead text-danger"
-  }
-
-  // Display detailed results
-  displayDetailedResults(results.detailed || [])
-}
-
-// Display detailed results
-function displayDetailedResults(detailed) {
-  const container = document.getElementById("detailedResults")
-
-  if (!detailed || detailed.length === 0) {
-    container.innerHTML = '<div class="text-center text-muted">No detailed results available</div>'
-    return
-  }
-
-  container.innerHTML = `
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Assessment</th>
-            <th>Type</th>
-            <th>Score</th>
-            <th>Max Score</th>
-            <th>Percentage</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${detailed
-            .map(
-              (result) => `
-            <tr>
-              <td>${result.title}</td>
-              <td><span class="badge bg-secondary">${result.type}</span></td>
-              <td>${result.score}</td>
-              <td>${result.max_score}</td>
-              <td>
-                <span class="badge ${getGradeBadgeClass(result.percentage)}">
-                  ${result.percentage}%
-                </span>
-              </td>
-              <td>${formatDate(result.date)}</td>
-            </tr>
-          `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `
-}
-
-// Get grade badge class
-function getGradeBadgeClass(percentage) {
-  if (percentage >= 70) return "bg-success"
-  if (percentage >= 60) return "bg-info"
-  if (percentage >= 50) return "bg-warning"
-  return "bg-danger"
-}
-
-// Load exams data
-async function loadExamsData() {
-  try {
-    const response = await fetch("/api/student/exams")
-    const data = await response.json()
-
-    if (data.success) {
-      displayExams(data.exams)
-      displayExamHistory(data.history)
-    }
-  } catch (error) {
-    console.error("Error loading exams data:", error)
-    document.getElementById("examsContent").innerHTML = '<div class="text-center text-danger">Error loading exams</div>'
-  }
-}
-
-// Display exams
-function displayExams(exams) {
-  const container = document.getElementById("examsContent")
-
-  if (!exams || exams.length === 0) {
-    container.innerHTML = '<div class="text-center text-muted">No exams available at this time</div>'
-    return
-  }
-
-  container.innerHTML = exams
-    .map((exam) => {
-      const isActive = exam.is_active && new Date(exam.scheduled_date) <= new Date()
-      const isPast = new Date(exam.scheduled_date) < new Date()
-
-      return `
-      <div class="exam-card ${isActive ? "active" : ""}">
-        <div class="d-flex justify-content-between align-items-start">
-          <div class="flex-grow-1">
-            <h6>${exam.title}</h6>
-            <p class="text-muted mb-2">${exam.description || "No description provided"}</p>
-            <div class="exam-meta">
-              <small class="text-muted">
-                <i class="fas fa-clock me-1"></i>Duration: ${exam.duration_minutes} minutes
-              </small>
-              <small class="text-muted ms-3">
-                <i class="fas fa-question-circle me-1"></i>Questions: ${exam.total_questions}
-              </small>
-              <small class="text-muted ms-3">
-                <i class="fas fa-calendar me-1"></i>Scheduled: ${formatDate(exam.scheduled_date)}
-              </small>
-            </div>
-          </div>
-          <div class="exam-actions">
-            ${getExamActions(exam, isActive, isPast)}
-          </div>
-        </div>
-      </div>
-    `
-    })
-    .join("")
-}
-
-// Get exam actions
-function getExamActions(exam, isActive, isPast) {
-  if (isPast && !isActive) {
-    return '<span class="badge bg-secondary">Ended</span>'
-  } else if (isActive) {
-    return `
-      <button class="btn btn-success" onclick="startExam(${exam.id})">
-        <i class="fas fa-play me-1"></i>Start Exam
-      </button>
-    `
-  } else {
-    return `
-      <div class="exam-timer">
-        <i class="fas fa-clock me-1"></i>
-        Starts ${formatDate(exam.scheduled_date)}
-      </div>
-    `
-  }
-}
-
-// Display exam history
-function displayExamHistory(history) {
-  const container = document.getElementById("examHistory")
-
-  if (!history || history.length === 0) {
-    container.innerHTML = '<div class="text-center text-muted">No exam history found</div>'
-    return
-  }
-
-  container.innerHTML = `
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Exam</th>
-            <th>Type</th>
-            <th>Score</th>
-            <th>Total Questions</th>
-            <th>Percentage</th>
-            <th>Time Taken</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${history
-            .map(
-              (result) => `
-            <tr>
-              <td>${result.exam_title}</td>
-              <td><span class="badge bg-info">${result.exam_type}</span></td>
-              <td>${result.score}</td>
-              <td>${result.total_questions}</td>
-              <td>
-                <span class="badge ${getGradeBadgeClass(Math.round((result.score / result.total_questions) * 100))}">
-                  ${Math.round((result.score / result.total_questions) * 100)}%
-                </span>
-              </td>
-              <td>${result.time_taken_minutes} min</td>
-              <td>${formatDate(result.completed_at)}</td>
-            </tr>
-          `,
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `
-}
-
-// Setup event listeners
-function setupEventListeners() {
-  // Profile form submission
-  document.getElementById("profileForm").addEventListener("submit", updateProfile)
-
-  // Assignment upload form
-  document.getElementById("assignmentUploadForm").addEventListener("submit", uploadAssignment)
-
-  // Profile picture form
-  document.getElementById("profilePictureForm").addEventListener("submit", updateProfilePicture)
-
-  // Profile picture preview
-  document.getElementById("profilePictureFile").addEventListener("change", previewProfilePicture)
-}
-
-// Show section
-function showSection(sectionName) {
-  // Hide all sections
-  document.querySelectorAll(".dashboard-section").forEach((section) => {
-    section.style.display = "none"
-  })
-
-  // Show selected section
-  document.getElementById(`${sectionName}-section`).style.display = "block"
-
-  // Update menu active state
-  document.querySelectorAll(".menu-item").forEach((item) => {
-    item.classList.remove("active")
-  })
-  document.querySelector(`[data-section="${sectionName}"]`).classList.add("active")
-
-  currentSection = sectionName
-}
-
-// Submit assignment
-function submitAssignment(assignmentId, title, dueDate) {
-  document.getElementById("assignmentId").value = assignmentId
-  document.getElementById("assignmentTitle").value = title
-  document.getElementById("assignmentDueDate").value = formatDate(dueDate)
-
-  const modal = window.bootstrap.Modal(document.getElementById("assignmentUploadModal"))
-  modal.show()
-}
-
-// Upload assignment
-async function uploadAssignment(e) {
-  e.preventDefault()
-
-  const formData = new FormData()
-  formData.append("assignmentId", document.getElementById("assignmentId").value)
-  formData.append("file", document.getElementById("assignmentFile").files[0])
-  formData.append("notes", document.getElementById("submissionNotes").value)
-
-  const submitBtn = e.target.querySelector('button[type="submit"]')
-  const originalText = submitBtn.innerHTML
-  setLoadingState(submitBtn, true, originalText)
-
-  try {
-    const response = await fetch("/api/student/submit-assignment", {
-      method: "POST",
-      body: formData,
-    })
-
-    const result = await response.json()
-
-    if (result.success) {
-      showMessage("Assignment submitted successfully!", "success")
-      const modal = window.bootstrap.Modal.getInstance(document.getElementById("assignmentUploadModal"))
-      modal.hide()
-
-      // Reload assignments
-      await loadAssignmentsData()
-    } else {
-      throw new Error(result.error || "Submission failed")
-    }
-  } catch (error) {
-    console.error("Assignment submission error:", error)
-    showMessage(error.message || "Submission failed", "danger")
-  } finally {
-    setLoadingState(submitBtn, false, originalText)
-  }
-}
-
-// Change profile picture
-function changeProfilePicture() {
-  const modal = window.bootstrap.Modal(document.getElementById("profilePictureModal"))
-  modal.show()
-}
-
-// Preview profile picture
-function previewProfilePicture(e) {
-  const file = e.target.files[0]
-  if (file) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      document.getElementById("previewImage").src = e.target.result
-    }
-    reader.readAsDataURL(file)
-  }
-}
-
-// Update profile picture
-async function updateProfilePicture(e) {
-  e.preventDefault()
-
-  const formData = new FormData()
-  formData.append("profilePicture", document.getElementById("profilePictureFile").files[0])
-
-  const submitBtn = e.target.querySelector('button[type="submit"]')
-  const originalText = submitBtn.innerHTML
-  setLoadingState(submitBtn, true, originalText)
-
-  try {
-    const response = await fetch("/api/student/update-profile-picture", {
-      method: "POST",
-      body: formData,
-    })
-
-    const result = await response.json()
-
-    if (result.success) {
-      showMessage("Profile picture updated successfully!", "success")
-      document.getElementById("studentAvatar").src = result.profilePicture
-
-      const modal = window.bootstrap.Modal.getInstance(document.getElementById("profilePictureModal"))
-      modal.hide()
-    } else {
-      throw new Error(result.error || "Update failed")
-    }
-  } catch (error) {
-    console.error("Profile picture update error:", error)
-    showMessage(error.message || "Update failed", "danger")
-  } finally {
-    setLoadingState(submitBtn, false, originalText)
-  }
-}
-
-// Update profile
-async function updateProfile(e) {
-  e.preventDefault()
-
-  const profileData = {
-    phone: document.getElementById("profilePhone").value,
-    address: document.getElementById("profileAddress").value,
-  }
-
-  const submitBtn = e.target.querySelector('button[type="submit"]')
-  const originalText = submitBtn.innerHTML
-  setLoadingState(submitBtn, true, originalText)
-
-  try {
-    const response = await fetch("/api/student/update-profile", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(profileData),
-    })
-
-    const result = await response.json()
-
-    if (result.success) {
-      showMessage("Profile updated successfully!", "success")
-    } else {
-      throw new Error(result.error || "Update failed")
-    }
-  } catch (error) {
-    console.error("Profile update error:", error)
-    showMessage(error.message || "Update failed", "danger")
-  } finally {
-    setLoadingState(submitBtn, false, originalText)
-  }
-}
-
-// Filter assignments
-function filterAssignments(filter) {
-  const assignments = document.querySelectorAll(".assignment-card")
-
-  // Update button states
-  document.querySelectorAll(".btn-group .btn").forEach((btn) => {
-    btn.classList.remove("active")
-  })
-  event.target.classList.add("active")
-
-  assignments.forEach((assignment) => {
-    const status = assignment.dataset.status
-
-    if (filter === "all") {
-      assignment.style.display = "block"
-    } else if (filter === status) {
-      assignment.style.display = "block"
-    } else {
-      assignment.style.display = "none"
-    }
-  })
-}
-
-// Start exam
-function startExam(examId) {
-  if (confirm("Are you ready to start the exam? Once started, the timer will begin and cannot be paused.")) {
-    window.location.href = `/student/exam/${examId}`
-  }
-}
-
-// Download receipt
-function downloadReceipt(reference) {
-  window.open(`/api/receipt/download?reference=${reference}`, "_blank")
-}
-
-// Pay outstanding payment
-function payOutstanding(type, amount) {
-  // This would integrate with Paystack for payment
-  alert(`Payment integration for ${type} payment of ₦${amount.toLocaleString()} will be implemented.`)
-}
-
-// Logout
-function logout() {
-  if (confirm("Are you sure you want to logout?")) {
-    fetch("/api/student/logout", { method: "POST" })
-      .then(() => {
-        window.location.href = "/student/login"
-      })
-      .catch((error) => {
-        console.error("Logout error:", error)
-        window.location.href = "/student/login"
-      })
-  }
-}
-
-// Format date
-function formatDate(dateString) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
-// Utility functions
-function setLoadingState(button, loading, originalText) {
-  if (loading) {
-    button.disabled = true
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...'
-  } else {
-    button.disabled = false
-    button.innerHTML = originalText
-  }
-}
-
-function showMessage(message, type) {
-  const alertDiv = document.createElement("div")
-  alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`
-  alertDiv.style.cssText = "top: 100px; right: 20px; z-index: 9999; min-width: 300px;"
-  alertDiv.innerHTML = `
-    ${message}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  `
-
-  document.body.appendChild(alertDiv)
-
-  setTimeout(() => {
-    if (alertDiv.parentNode) {
-      alertDiv.remove()
-    }
-  }, 5000)
-}
+        };
+        
+        // Initial profile fetch to populate sidebar
+        if (section !== 'profile') {
+             fetch('/api/student/profile', { method: 'GET', credentials: 'include' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    setSidebarInfo(data.student);
+                }
+            }).catch(e => console.error('Initial profile fetch failed', e));
+        }
+
+        const handler = sectionHandlers[section];
+        if (handler) {
+            handler();
+        } else {
+            console.error('Invalid section:', section);
+            contentLoading.style.display = 'none';
+            contentError.textContent = 'Invalid dashboard section.';
+        }
+      };
+
+      navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          const section = link.getAttribute('data-section');
+          loadSection(section);
+        });
+      });
+
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        fetch('/api/student/logout', { method: 'POST', credentials: 'include' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              window.location.href = data.redirect;
+            }
+          })
+          .catch(error => console.error('Logout error:', error));
+      });
+
+      loadSection('overview');
+    });
