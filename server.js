@@ -1,3 +1,4 @@
+
 const express = require("express");
 const mysql = require("mysql");
 const session = require("express-session");
@@ -19,6 +20,8 @@ const pendingApplications = {};
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from the root directory
 app.use(express.static(__dirname, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.css')) {
@@ -29,20 +32,18 @@ app.use(express.static(__dirname, {
     }
   }
 }));
-app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 
 // Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  secret: 'your-secret-key', // Replace with a secure secret
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: { secure: false } // Set to true if using HTTPS
 }));
 
-// Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "Uploads");
+    const uploadPath = "uploads/";
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -51,54 +52,51 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|zip|rar|jpeg|jpg|png/;
+    if (!file || !file.originalname) {
+      return cb(new Error("No file uploaded or file name missing"));
+    }
+
+    const allowedTypes = /jpeg|jpg|png|jfif|pdf|doc|docx|zip/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    if (extname && mimetype) {
-      cb(null, true);
+
+    if (mimetype && extname) {
+      return cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, Word, ZIP, RAR, JPEG, JPG, and PNG are allowed.'));
+      cb(
+        new Error(
+          "Invalid file type. Only JPG, JPEG, PNG, JFIF, PDF, DOC, DOCX, or ZIP are allowed."
+        )
+      );
     }
-  }
+  },
 });
+
+// Utility: normalize profile picture path
+function normalizeProfilePath(picturePath) {
+  if (!picturePath) return null
+  return picturePath
+    .replace(/\\/g, "/") // Windows \ → /
+    .replace(/^uploads\//, "/uploads/") // prepend slash
+}
 
 // Authentication middleware
 const isAuthenticated = (req, res, next) => {
   if (req.session.studentId) {
-    console.log('Authenticated request:', { studentId: req.session.studentId, url: req.url });
-    next();
+    next()
   } else {
-    console.error('Authentication failed: No studentId in session', { url: req.url });
-    res.redirect("/student/login");
+    res.status(401).json({ success: false, error: "Authentication required" })
   }
-};
-
-
-// Normalize profile picture path
-function normalizeProfilePath(picturePath) {
-  if (!picturePath) return null;
-  const normalizedPath = picturePath.replace(/\\/g, "/");
-  return normalizedPath.startsWith('/uploads') ? normalizedPath : `/uploads/${path.basename(normalizedPath)}`;
 }
-
-// Input validation for login
-const validateInput = (admissionNumber) => {
-  const admissionRegex = /^[A-Z0-9/]{6,17}$/;
-  return admissionRegex.test(admissionNumber);
-};
-
-// Routes
-app.get("/student/login", (req, res) => {
-  res.sendFile(path.join(__dirname, "student_login.html"));
-});
-
 // Utility function for Paystack payment verification
 async function verifyPaystackPayment(reference) {
   try {
@@ -247,6 +245,19 @@ app.get("/api/courses", (req, res) => {
     res.json(results);
   });
 });
+
+// API to get a list of all positions for the frontend dropdown
+app.get('/api/positions', (req, res) => {
+    const query = 'SELECT id, name FROM positions';
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("Error fetching positions:", err);
+            return res.status(500).json({ success: false, error: 'Failed to retrieve positions.' });
+        }
+        res.json({ success: true, positions: results });
+    });
+});
+
 // Verify application or admission
 // Verify application or admission
 app.get("/api/student/verify-application/:identifier", (req, res) => {
@@ -1016,329 +1027,168 @@ app.get("/api/admission-letter/download", (req, res) => {
   });
 });
 
-// Student login
-app.post('/api/student/login', async (req, res) => {
-  const { admissionNumber, password } = req.body;
-
-  if (!admissionNumber || !password) {
-    console.error('Login error: Missing fields', { admissionNumber, password });
-    return res.status(400).json({ success: false, message: 'All fields are required.' });
+// Student profile endpoint
+app.get("/api/student/profile", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
   }
 
-  if (!validateInput(admissionNumber)) {
-    console.error('Login error: Invalid admission number format', { admissionNumber });
-    return res.status(400).json({ success: false, message: 'Invalid Admission Number or Password' });
-  }
-
-  db.query('SELECT * FROM students WHERE admission_number = ?', [admissionNumber], async (err, results) => {
-    if (err) {
-      console.error('Login database error:', err);
-      return res.status(500).json({ success: false, message: 'Server error' });
-    }
-
-    if (!results || results.length === 0) {
-      console.error('Login error: Student not found', { admissionNumber });
-      return res.status(401).json({ success: false, message: 'Invalid Admission Number or Password' });
-    }
-
-    const student = results[0];
-    try {
-      const validPassword = await bcrypt.compare(password, student.password_hash);
-      if (!validPassword) {
-        console.error('Login error: Invalid password', { admissionNumber });
-        return res.status(401).json({ success: false, message: 'Invalid Admission Number or Password' });
-      }
-
-      req.session.studentId = student.id;
-      req.session.student = {
-        id: student.id,
-        admissionNumber: student.admission_number,
-        name: `${student.first_name} ${student.last_name}`,
-        email: student.email,
-        course_id: student.course_id
-      };
-
-      console.log('Login successful:', { studentId: student.id, admissionNumber });
-      res.json({
-        success: true,
-        message: 'Login successful',
-        redirect: '/student/dashboard'
-      });
-    } catch (error) {
-      console.error('Password comparison error:', error);
-      res.status(500).json({ success: false, message: 'Server error' });
-    }
-  });
-});
-// Get security question
-// Get Security Question
-app.get("/api/student/security-question/:admissionNumber", (req, res) => {
-  const admissionNumber = req.params.admissionNumber.trim().toUpperCase();
-
-  const query = "SELECT security_question FROM students WHERE admission_number = ?";
-  db.query(query, [admissionNumber], (err, results) => {
-    if (err) {
-      console.error("DB error:", err);
-      return res.status(500).json({ success: false, message: "Server error" });
-    }
-
-    if (results.length === 0) {
-      return res.json({ success: false, message: "Student not found" });
-    }
-
-    res.json({ success: true, securityQuestion: results[0].security_question });
-  });
-});
-// Verify Security Answer
-app.post("/api/student/verify-answer", (req, res) => {
-  const { admissionNumber, securityAnswer } = req.body;
-
-  if (!admissionNumber || !securityAnswer) {
-    return res.status(400).json({ success: false, message: "Missing required fields" });
-  }
-
-  const query = "SELECT security_answer FROM students WHERE admission_number = ?";
-  db.query(query, [admissionNumber.trim().toUpperCase()], (err, results) => {
-    if (err) {
-      console.error("DB error:", err);
-      return res.status(500).json({ success: false, message: "Server error" });
-    }
-
-    if (results.length === 0) {
-      return res.json({ success: false, message: "Student not found" });
-    }
-
-    const storedAnswer = results[0].security_answer?.trim().toUpperCase();
-    const providedAnswer = securityAnswer.trim().toUpperCase();
-
-    if (storedAnswer === providedAnswer) {
-      res.json({ success: true, message: "Answer verified" });
-    } else {
-      res.json({ success: false, message: "Incorrect security answer" });
-    }
-  });
-});
-// Reset Password
-app.post("/api/student/reset-password", async (req, res) => {
-  const { admissionNumber, newPassword } = req.body;
-
-  if (!admissionNumber || !newPassword) {
-    return res.status(400).json({ success: false, message: "Missing required fields" });
-  }
-
-  try {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const query = "UPDATE students SET password_hash = ? WHERE admission_number = ?";
-    db.query(query, [hashedPassword, admissionNumber.trim().toUpperCase()], (err, result) => {
-      if (err) {
-        console.error("DB error:", err);
-        return res.status(500).json({ success: false, message: "Server error" });
-      }
-
-      if (result.affectedRows === 0) {
-        return res.json({ success: false, message: "Student not found" });
-      }
-
-      res.json({ success: true, message: "Password reset successful" });
-    });
-  } catch (error) {
-    console.error("Hashing error:", error);
-    res.status(500).json({ success: false, message: "Error resetting password" });
-  }
-});
-
-// Student dashboard route
-app.get('/student/dashboard', isAuthenticated, (req, res) => {
-  res.sendFile(path.join(__dirname, 'student_dashboard.html'));
-});
-
-// Student profile endpoint (Read-only)
-app.get("/api/student/profile", isAuthenticated, (req, res) => {
-  const query = `
-    SELECT s.id, s.first_name, s.last_name, s.email, s.phone, s.address, s.profile_picture, s.admission_number,
-           c.name AS course_name 
-    FROM students s 
-    LEFT JOIN courses c ON s.course_id = c.id 
-    WHERE s.id = ?
-  `;
+  const query = `SELECT s.*, c.name as course_name 
+                 FROM students s 
+                 LEFT JOIN courses c ON s.course_id = c.id 
+                 WHERE s.id = ?`;
 
   db.query(query, [req.session.studentId], (err, results) => {
     if (err) {
-      console.error("Profile fetch error:", err);
-      return res.status(500).json({ success: false, error: "Database error" });
+      console.error("Error fetching student profile:", err);
+      return res.status(500).json({ error: "Database error" });
     }
 
     if (results.length === 0) {
-      console.error("Profile error: Student not found", { studentId: req.session.studentId });
-      return res.status(404).json({ success: false, error: "Student not found" });
+      return res.status(404).json({ error: "Student not found" });
     }
 
     const student = results[0];
-    student.profile_picture = normalizeProfilePath(student.profile_picture);
-    console.log('Profile fetched:', { studentId: student.id, profile_picture: student.profile_picture });
+    delete student.password_hash;
+    delete student.security_answer;
 
     res.json({ success: true, student });
   });
 });
 
-// Overview data endpoint
-app.get("/api/student-overview", isAuthenticated, (req, res) => {
+// Student overview data
+app.get("/api/student-overview", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
   const studentId = req.session.studentId;
 
-  const queries = [
-    `SELECT 
-       COUNT(*) as totalAssignments,
-       COUNT(sub.id) as completedAssignments
-     FROM assignments a
-     LEFT JOIN students s ON s.course_id = a.course_id
-     LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id AND sub.student_id = s.id
-     WHERE s.id = ?`,
-    `SELECT 
-       AVG(CASE WHEN sub.score IS NOT NULL THEN (sub.score / a.max_score) * 100 END) as assignmentAverage,
-       (SELECT AVG((score / total_questions) * 100) FROM exam_results WHERE student_id = ?) as examAverage
-     FROM assignments a
-     LEFT JOIN students s ON s.course_id = a.course_id
-     LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id AND sub.student_id = s.id
-     WHERE s.id = ?`,
-    `SELECT COUNT(*) as upcomingExams
-     FROM exams e
-     LEFT JOIN students s ON s.course_id = e.course_id
-     WHERE s.id = ? AND e.scheduled_date > NOW() AND e.is_active = 1`,
-    `SELECT 'assignment' as type, a.title, 'New assignment posted' as description, a.created_at
-     FROM assignments a
-     LEFT JOIN students s ON s.course_id = a.course_id
-     WHERE s.id = ?
-     UNION ALL
-     SELECT 'payment' as type, CONCAT('Payment: ', p.payment_type) as title, 
-            CONCAT('Amount: ₦', p.amount) as description, p.payment_date as created_at
-     FROM payments p
-     WHERE p.student_id = ?
-     ORDER BY created_at DESC LIMIT 5`
-  ];
-
-  Promise.all([
-    new Promise((resolve, reject) => {
-      db.query(queries[0], [studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results[0] || { totalAssignments: 0, completedAssignments: 0 });
-      });
-    }),
-    new Promise((resolve, reject) => {
-      db.query(queries[1], [studentId, studentId], (err, results) => {
-        if (err) reject(err);
-        else {
-          const result = results[0] || {};
-          const assignmentAvg = result.assignmentAverage || 0;
-          const examAvg = result.examAverage || 0;
-          const overall = Math.round((assignmentAvg * 0.6 + examAvg * 0.4) * 100) / 100;
-          resolve({ overallGrade: overall });
-        }
-      });
-    }),
-    new Promise((resolve, reject) => {
-      db.query(queries[2], [studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results[0] || { upcomingExams: 0 });
-      });
-    }),
-    new Promise((resolve, reject) => {
-      db.query(queries[3], [studentId, studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results || []);
-      });
-    })
-  ])
-    .then(([assignments, grade, exams, activities]) => {
-      console.log('Overview fetched:', { studentId, stats: { assignments, grade, exams }, activities });
-      res.json({
-        success: true,
-        stats: {
-          totalAssignments: assignments.totalAssignments,
-          completedAssignments: assignments.completedAssignments,
-          overallGrade: grade.overallGrade,
-          upcomingExams: exams.upcomingExams
-        },
-        recentActivities: activities
-      });
-    })
-    .catch((err) => {
-      console.error("Overview data error:", err);
-      res.status(500).json({ success: false, error: "Failed to load overview data" });
-    });
-});
-
-// Payments endpoint
-app.get("/api/student/payments", isAuthenticated, (req, res) => {
-  const studentId = req.session.studentId;
-
-  const paymentsQuery = `
-    SELECT 'Application' as payment_type, amount, reference_number, 'Completed' as status, created_at as payment_date 
-    FROM students WHERE id = ? AND amount IS NOT NULL AND reference_number IS NOT NULL
-    UNION ALL
-    SELECT payment_type, amount, reference_number, status, payment_date
-    FROM payments WHERE student_id = ?
-    ORDER BY payment_date DESC
+  const statsQuery = `
+    SELECT 
+      (SELECT COUNT(*) FROM assignments a 
+       JOIN students s ON s.course_id = a.course_id 
+       WHERE s.id = ?) as totalAssignments,
+      (SELECT COUNT(*) FROM assignment_submissions asub 
+       WHERE asub.student_id = ?) as completedAssignments,
+      (SELECT COUNT(*) FROM exams e 
+       JOIN students s ON s.course_id = e.course_id 
+       WHERE s.id = ? AND e.scheduled_date > NOW() AND e.is_active = 1) as upcomingExams
   `;
 
-  const outstandingQuery = `SELECT 'Registration' as type, c.registration_fee - COALESCE(SUM(p.amount), 0) as amount,
-                           'Complete your registration payment' as description, NULL as dueDate
-                           FROM students s
-                           JOIN courses c ON s.course_id = c.id
-                           LEFT JOIN payments p ON p.student_id = s.id AND p.payment_type = 'Registration'
-                           WHERE s.id = ? AND s.status = 'Applied'
-                           GROUP BY c.registration_fee
-                           HAVING amount > 0`;
+  db.query(statsQuery, [studentId, studentId, studentId], (err, statsResults) => {
+    if (err) {
+      console.error("Error fetching overview stats:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
 
-  Promise.all([
-    new Promise((resolve, reject) => {
-      db.query(paymentsQuery, [studentId, studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results || []);
+    const stats = statsResults[0];
+    stats.overallGrade = 0;
+
+    const activitiesQuery = `
+      SELECT 'assignment' as type, a.title, 'New assignment posted' as description, a.created_at
+      FROM assignments a 
+      JOIN students s ON s.course_id = a.course_id 
+      WHERE s.id = ?
+      UNION ALL
+      SELECT 'payment' as type, CONCAT(p.payment_type, ' Payment') as title, 
+             CONCAT('Payment of ₦', p.amount, ' completed') as description, p.payment_date as created_at
+      FROM payments p 
+      WHERE p.student_id = ?
+      ORDER BY created_at DESC 
+      LIMIT 10
+    `;
+
+    db.query(activitiesQuery, [studentId, studentId], (err, activitiesResults) => {
+      if (err) {
+        console.error("Error fetching activities:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      res.json({
+        success: true,
+        stats,
+        recentActivities: activitiesResults,
       });
-    }),
-    new Promise((resolve, reject) => {
-      db.query(outstandingQuery, [studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results || []);
-      });
-    })
-  ])
-    .then(([payments, outstanding]) => {
-      console.log('Payments fetched:', { studentId, paymentsCount: payments.length, outstandingCount: outstanding.length });
+    });
+  });
+});
+
+// Student payments
+app.get("/api/student/payments", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  const paymentsQuery = `SELECT * FROM payments WHERE student_id = ? ORDER BY payment_date DESC`;
+
+  db.query(paymentsQuery, [req.session.studentId], (err, payments) => {
+    if (err) {
+      console.error("Error fetching payments:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    const outstanding = [];
+
+    const feeQuery = `
+      SELECT c.registration_fee 
+      FROM students s 
+      JOIN courses c ON s.course_id = c.id 
+      WHERE s.id = ?
+    `;
+
+    db.query(feeQuery, [req.session.studentId], (err, feeResults) => {
+      if (err || feeResults.length === 0) {
+        console.error("Error fetching registration fee:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      const registrationFee = feeResults[0].registration_fee;
+
+      const registrationPayments = payments.filter((p) => p.payment_type === "Registration");
+      const totalRegistrationPaid = registrationPayments.reduce((sum, p) => sum + Number.parseFloat(p.amount), 0);
+
+      if (totalRegistrationPaid < registrationFee) {
+        outstanding.push({
+          type: "Registration",
+          amount: registrationFee - totalRegistrationPaid,
+          description: "Complete your registration payment",
+          dueDate: null,
+        });
+      }
+
       res.json({
         success: true,
         payments,
-        outstanding
+        outstanding,
       });
-    })
-    .catch((err) => {
-      console.error("Payments data error:", err);
-      res.status(500).json({ success: false, error: "Failed to load payments data" });
     });
+  });
 });
 
-// Assignments endpoint
-app.get("/api/student/assignments", isAuthenticated, (req, res) => {
-  const studentId = req.session.studentId;
+// Student assignments
+app.get("/api/student/assignments", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
 
-  const query = `
-    SELECT a.id, a.title, a.description, a.instructions, a.date_given, a.due_date, a.max_score,
-           sub.id as submission_id, sub.file_path as submission_file, sub.submission_date, sub.score, sub.feedback
+  const assignmentsQuery = `
+    SELECT a.*, asub.id as submission_id, asub.file_path as submission_file, 
+           asub.submission_date, asub.score, asub.feedback
     FROM assignments a
-    LEFT JOIN students s ON s.course_id = a.course_id
-    LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id AND sub.student_id = s.id
+    JOIN students s ON s.course_id = a.course_id
+    LEFT JOIN assignment_submissions asub ON asub.assignment_id = a.id AND asub.student_id = s.id
     WHERE s.id = ?
-    ORDER BY a.due_date DESC
+    ORDER BY a.date_given DESC
   `;
 
-  db.query(query, [studentId], (err, results) => {
+  db.query(assignmentsQuery, [req.session.studentId], (err, results) => {
     if (err) {
-      console.error("Assignments error:", err);
-      return res.status(500).json({ success: false, error: "Failed to load assignments" });
+      console.error("Error fetching assignments:", err);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    const assignments = results.map(row => ({
+    const assignments = results.map((row) => ({
       id: row.id,
       title: row.title,
       description: row.description,
@@ -1346,353 +1196,319 @@ app.get("/api/student/assignments", isAuthenticated, (req, res) => {
       date_given: row.date_given,
       due_date: row.due_date,
       max_score: row.max_score,
-      submission: row.submission_id ? {
-        id: row.submission_id,
-        file_path: normalizeProfilePath(row.submission_file),
-        submission_date: row.submission_date,
-        score: row.score,
-        feedback: row.feedback
-      } : null
+      submission: row.submission_id
+        ? {
+            id: row.submission_id,
+            file_path: row.submission_file,
+            submission_date: row.submission_date,
+            score: row.score,
+            feedback: row.feedback,
+          }
+        : null,
     }));
 
-    console.log('Assignments fetched:', { studentId, assignmentCount: assignments.length });
     res.json({ success: true, assignments });
   });
 });
 
-// Submit assignment endpoint
-app.post("/api/student/submit-assignment", isAuthenticated, upload.single("assignmentFile"), (req, res) => {
-  const { assignmentId } = req.body;
-  const studentId = req.session.studentId;
-
-  if (!req.file) {
-    console.error('Assignment submission error: No file uploaded', { assignmentId, studentId });
-    return res.status(400).json({ success: false, message: "No file uploaded" });
+// Submit assignment
+app.post("/api/student/submit-assignment", upload.single("file"), (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const filePath = `/uploads/${req.file.filename}`;
+  const { assignmentId } = req.body;
+  const filePath = req.file ? req.file.path : null;
 
-  const checkQuery = `SELECT id FROM assignment_submissions WHERE assignment_id = ? AND student_id = ?`;
+  if (!filePath) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
 
-  db.query(checkQuery, [assignmentId, studentId], (err, results) => {
+  const query = `INSERT INTO assignment_submissions (assignment_id, student_id, file_path, submission_date) 
+                 VALUES (?, ?, ?, NOW())`;
+
+  db.query(query, [assignmentId, req.session.studentId, filePath], (err, result) => {
     if (err) {
-      console.error("Assignment submission check error:", err);
-      return res.status(500).json({ success: false, message: "Database error" });
+      console.error("Error submitting assignment:", err);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    if (results.length > 0) {
-      const updateQuery = `
-        UPDATE assignment_submissions 
-        SET file_path = ?, submission_date = NOW()
-        WHERE id = ?
-      `;
-      db.query(updateQuery, [filePath, results[0].id], (err) => {
-        if (err) {
-          console.error("Assignment update error:", err);
-          return res.status(500).json({ success: false, message: "Update failed" });
-        }
-        console.log('Assignment updated:', { assignmentId, studentId, filePath });
-        res.json({ success: true, message: "Submission updated successfully" });
-      });
-    } else {
-      const insertQuery = `
-        INSERT INTO assignment_submissions (assignment_id, student_id, file_path, submission_date) 
-        VALUES (?, ?, ?, NOW())
-      `;
-      db.query(insertQuery, [assignmentId, studentId, filePath], (err) => {
-        if (err) {
-          console.error("Assignment insert error:", err);
-          return res.status(500).json({ success: false, message: "Submission failed" });
-        }
-        console.log('Assignment submitted:', { assignmentId, studentId, filePath });
-        res.json({ success: true, message: "Assignment submitted successfully" });
-      });
-    }
+    res.json({ success: true });
   });
 });
 
-// Results endpoint
-app.get("/api/student/results", isAuthenticated, (req, res) => {
-  const studentId = req.session.studentId;
+// Student results
+app.get("/api/student/results", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
 
-  const query = `
-    SELECT 'Assignment' as type, a.title, sub.score, a.max_score,
-           ROUND((sub.score / a.max_score) * 100) as percentage, sub.graded_at as date
-    FROM assignment_submissions sub
-    JOIN assignments a ON sub.assignment_id = a.id
-    WHERE sub.student_id = ? AND sub.score IS NOT NULL
-    UNION ALL
-    SELECT e.exam_type as type, e.title, er.score, er.total_questions as max_score,
-           ROUND((er.score / er.total_questions) * 100) as percentage, er.completed_at as date
-    FROM exam_results er
-    JOIN exams e ON er.exam_id = e.id
-    WHERE er.student_id = ?
-    ORDER BY date DESC
+  const resultsQuery = `
+    SELECT 
+      AVG(CASE WHEN asub.score IS NOT NULL THEN (asub.score / a.max_score) * 100 END) as assignmentAverage,
+      0 as testAverage,
+      0 as examAverage
+    FROM assignments a
+    JOIN students s ON s.course_id = a.course_id
+    LEFT JOIN assignment_submissions asub ON asub.assignment_id = a.id AND asub.student_id = s.id
+    WHERE s.id = ?
   `;
 
-  db.query(query, [studentId, studentId], (err, results) => {
+  db.query(resultsQuery, [req.session.studentId], (err, results) => {
     if (err) {
-      console.error("Results error:", err);
-      return res.status(500).json({ success: false, error: "Failed to load results" });
+      console.error("Error fetching results:", err);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    const assignments = results.filter(r => r.type === "Assignment");
-    const tests = results.filter(r => r.type === "Test");
-    const exams = results.filter(r => r.type === "Exam");
+    const result = results[0];
+    result.assignmentAverage = Math.round(result.assignmentAverage || 0);
 
-    const assignmentAverage = assignments.length > 0
-      ? Math.round(assignments.reduce((sum, a) => sum + a.percentage, 0) / assignments.length)
-      : 0;
-    const testAverage = tests.length > 0
-      ? Math.round(tests.reduce((sum, t) => sum + t.percentage, 0) / tests.length)
-      : 0;
-    const examAverage = exams.length > 0
-      ? Math.round(exams.reduce((sum, e) => sum + e.percentage, 0) / exams.length)
-      : 0;
-
-    console.log('Results fetched:', { studentId, assignmentCount: assignments.length, testCount: tests.length, examCount: exams.length });
     res.json({
       success: true,
-      results: {
-        assignmentAverage,
-        testAverage,
-        examAverage,
-        detailed: results
-      }
+      results: result,
+      detailed: [],
     });
   });
 });
 
-// Progress data endpoint for the chart
-app.get("/api/student/progress", isAuthenticated, (req, res) => {
-  const studentId = req.session.studentId;
-
-  const query = `
-    SELECT 'Assignment' as type, a.title, sub.score, a.max_score,
-           ROUND((sub.score / a.max_score) * 100) as percentage
-    FROM assignment_submissions sub
-    JOIN assignments a ON sub.assignment_id = a.id
-    WHERE sub.student_id = ? AND sub.score IS NOT NULL
-    UNION ALL
-    SELECT 'Test' as type, e.title, er.score, er.total_questions as max_score,
-           ROUND((er.score / er.total_questions) * 100) as percentage
-    FROM exam_results er
-    JOIN exams e ON er.exam_id = e.id
-    WHERE er.student_id = ? AND e.exam_type = 'Test'
-    UNION ALL
-    SELECT 'Exam' as type, e.title, er.score, er.total_questions as max_score,
-           ROUND((er.score / er.total_questions) * 100) as percentage
-    FROM exam_results er
-    JOIN exams e ON er.exam_id = e.id
-    WHERE er.student_id = ? AND e.exam_type = 'Final'
-  `;
-
-  db.query(query, [studentId, studentId, studentId], (err, results) => {
-    if (err) {
-      console.error("Progress data error:", err);
-      return res.status(500).json({ success: false, error: "Failed to load progress data" });
-    }
-
-    const assignments = results.filter(r => r.type === "Assignment");
-    const tests = results.filter(r => r.type === "Test");
-    const exams = results.filter(r => r.type === "Exam");
-
-    const assignmentAverage = assignments.length > 0
-      ? Math.round(assignments.reduce((sum, a) => sum + a.percentage, 0) / assignments.length)
-      : 0;
-    const testAverage = tests.length > 0
-      ? Math.round(tests.reduce((sum, t) => sum + t.percentage, 0) / tests.length)
-      : 0;
-    const examAverage = exams.length > 0
-      ? Math.round(exams.reduce((sum, e) => sum + e.percentage, 0) / exams.length)
-      : 0;
-
-    res.json({
-      success: true,
-      assignmentAverage,
-      testAverage,
-      examAverage
-    });
-  });
-});
-
-// Exams endpoint
-app.get("/api/student/exams", isAuthenticated, (req, res) => {
-  const studentId = req.session.studentId;
+// Student exams
+app.get("/api/student/exams", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
 
   const examsQuery = `
-    SELECT e.id, e.title, e.description, e.exam_type, e.duration_minutes, e.total_questions, 
-           e.scheduled_date, e.is_active
-    FROM exams e
-    LEFT JOIN students s ON s.course_id = e.course_id
+    SELECT e.* FROM exams e
+    JOIN students s ON s.course_id = e.course_id
     WHERE s.id = ?
     ORDER BY e.scheduled_date DESC
   `;
 
   const historyQuery = `
-    SELECT e.title as exam_title, e.exam_type, er.score, er.total_questions, 
-           er.time_taken_minutes, er.completed_at
+    SELECT er.*, e.title as exam_title, e.exam_type
     FROM exam_results er
-    JOIN exams e ON er.exam_id = e.id
+    JOIN exams e ON e.id = er.exam_id
     WHERE er.student_id = ?
     ORDER BY er.completed_at DESC
   `;
 
-  Promise.all([
-    new Promise((resolve, reject) => {
-      db.query(examsQuery, [studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results || []);
-      });
-    }),
-    new Promise((resolve, reject) => {
-      db.query(historyQuery, [studentId], (err, results) => {
-        if (err) reject(err);
-        else resolve(results || []);
-      });
-    })
-  ])
-    .then(([exams, history]) => {
-      console.log('Exams fetched:', { studentId, examCount: exams.length, historyCount: history.length });
-      res.json({
-        success: true,
-        exams,
-        history
-      });
-    })
-    .catch((err) => {
-      console.error("Exams data error:", err);
-      res.status(500).json({ success: false, error: "Failed to load exams data" });
-    });
-});
-
-// Resources endpoint
-app.get("/api/student/resources", isAuthenticated, (req, res) => {
-  const studentId = req.session.studentId;
-
-  const query = `
-    SELECT r.id, r.title, r.description, r.file_path, r.file_type, r.uploaded_at,
-           CONCAT(st.first_name, ' ', st.last_name) as uploaded_by
-    FROM resources r
-    LEFT JOIN students s ON s.course_id = r.course_id
-    LEFT JOIN staff st ON r.staff_id = st.id
-    WHERE s.id = ?
-    ORDER BY r.uploaded_at DESC
-  `;
-
-  db.query(query, [studentId], (err, results) => {
+  db.query(examsQuery, [req.session.studentId], (err, exams) => {
     if (err) {
-      console.error("Resources error:", err);
-      return res.status(500).json({ success: false, error: "Failed to load resources" });
+      console.error("Error fetching exams:", err);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    const resources = results.map(row => ({
-      ...row,
-      file_path: normalizeProfilePath(row.file_path)
-    }));
-
-    console.log('Resources fetched:', { studentId, resourceCount: resources.length });
-    res.json({ success: true, resources });
-  });
-});
-
-// Logout endpoint
-app.post("/api/student/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Logout error:", err);
-      return res.status(500).json({ success: false, error: "Logout failed" });
-    }
-    console.log('Logout successful');
-    res.json({
-      success: true,
-      message: "Logged out successfully",
-      redirect: "/student/login"
-    });
-  });
-});
-
-
-// Staff signup
-app.post("/api/staff/signup", async (req, res) => {
-  const { firstName, lastName, email, phone, department, position, qualifications, password } = req.body;
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const query = `INSERT INTO staff (first_name, last_name, email, phone, department, position, qualifications, password_hash, status) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`;
-
-    db.query(
-      query,
-      [firstName, lastName, email, phone, department, position, qualifications, hashedPassword],
-      (err, result) => {
-        if (err) {
-          console.error("Error creating staff account:", err);
-          if (err.code === "ER_DUP_ENTRY") {
-            return res.status(400).json({ error: "Email already exists" });
-          }
-          return res.status(500).json({ error: "Database error" });
-        }
-
-        res.json({
-          success: true,
-          staffId: result.insertId,
-        });
-      },
-    );
-  } catch (error) {
-    console.error("Staff signup error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Staff login
-app.post("/api/staff/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const query = `SELECT * FROM staff WHERE email = ? AND status IN ('Active', 'Pending')`;
-
-    db.query(query, [email], async (err, results) => {
+    db.query(historyQuery, [req.session.studentId], (err, history) => {
       if (err) {
-        console.error("Error during staff login:", err);
+        console.error("Error fetching exam history:", err);
         return res.status(500).json({ error: "Database error" });
       }
 
-      if (results.length === 0) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      const staff = results[0];
-
-      if (staff.status === "Pending") {
-        return res.status(401).json({ error: "Account pending approval" });
-      }
-
-      const isValidPassword = await bcrypt.compare(password, staff.password_hash);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      req.session.staffId = staff.id;
-      req.session.userType = "staff";
-
       res.json({
         success: true,
-        staff: {
-          id: staff.id,
-          name: `${staff.first_name} ${staff.last_name}`,
-          email: staff.email,
-          department: staff.department,
-          position: staff.position,
-        },
+        exams,
+        history,
       });
     });
-  } catch (error) {
-    console.error("Staff login error:", error);
-    res.status(500).json({ error: "Server error" });
+  });
+});
+
+// Update student profile
+app.post("/api/student/update-profile", (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
   }
+
+  const { phone, address } = req.body;
+
+  const query = `UPDATE students SET phone = ?, address = ? WHERE id = ?`;
+
+  db.query(query, [phone, address, req.session.studentId], (err, result) => {
+    if (err) {
+      console.error("Error updating profile:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({ success: true });
+  });
+});
+
+// Update profile picture
+app.post("/api/student/update-profile-picture", upload.single("profilePicture"), (req, res) => {
+  if (!req.session.studentId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+
+  const profilePicturePath = req.file.path;
+
+  const query = `UPDATE students SET profile_picture = ? WHERE id = ?`;
+
+  db.query(query, [profilePicturePath, req.session.studentId], (err, result) => {
+    if (err) {
+      console.error("Error updating profile picture:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({
+      success: true,
+      profilePicture: profilePicturePath,
+    });
+  });
+});
+
+// Student logout
+app.post("/api/student/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Error destroying session:", err);
+      return res.status(500).json({ error: "Logout failed" });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Staff signup API endpoint with file upload support
+app.post("/api/staff/signup", upload.single('profilePicture'), async (req, res) => {
+    const { firstName, lastName, email, phone, qualifications, password, courseIds, positionIds } = req.body;
+    const profilePicturePath = req.file ? req.file.path : null;
+
+    if (!firstName || !lastName || !email || !phone || !qualifications || !password || !courseIds || courseIds.length === 0 || !positionIds || positionIds.length === 0) {
+        return res.status(400).json({ success: false, error: "All required fields must be provided, including at least one course and position." });
+    }
+
+    try {
+        const checkEmailQuery = 'SELECT id, is_registered FROM staff WHERE email = ?';
+        db.query(checkEmailQuery, [email], async (err, results) => {
+            if (err) {
+                console.error("Database check error:", err);
+                return res.status(500).json({ success: false, error: "An unexpected database error occurred." });
+            }
+
+            if (results.length === 0) {
+                return res.status(401).json({ success: false, error: "Your email is not authorized for staff signup. Please contact an administrator." });
+            }
+
+            const staffRecord = results[0];
+            if (staffRecord.is_registered) {
+                return res.status(409).json({ success: false, error: "This email is already registered. Please login." });
+            }
+            
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            // Updated query to include profile_picture
+            const updateStaffQuery = `
+                UPDATE staff
+                SET first_name = ?, last_name = ?, phone = ?, qualifications = ?, password_hash = ?, is_registered = TRUE, profile_picture = ?
+                WHERE email = ?;
+            `;
+            const updateStaffValues = [firstName, lastName, phone, qualifications, hashedPassword, profilePicturePath, email];
+
+            db.query(updateStaffQuery, updateStaffValues, (err, updateResult) => {
+                if (err) {
+                    console.error("Error updating staff account:", err);
+                    return res.status(500).json({ success: false, error: "Failed to create account. Please try again." });
+                }
+
+                if (updateResult.affectedRows === 0) {
+                    return res.status(404).json({ success: false, error: "Could not find a matching staff record to update." });
+                }
+
+                const staffId = staffRecord.id;
+
+                const staffCoursesValues = courseIds.map(course_id => [staffId, course_id]);
+                const insertStaffCoursesQuery = 'INSERT INTO staff_courses (staff_id, course_id) VALUES ?';
+                const staffPositionsValues = positionIds.map(position_id => [staffId, position_id]);
+                const insertStaffPositionsQuery = 'INSERT INTO staff_positions (staff_id, position_id) VALUES ?';
+
+                db.query(insertStaffCoursesQuery, [staffCoursesValues], (err) => {
+                    if (err) {
+                        console.error("Error inserting into staff_courses:", err);
+                        return res.status(500).json({ success: false, error: "Failed to associate courses with staff member." });
+                    }
+
+                    db.query(insertStaffPositionsQuery, [staffPositionsValues], (err) => {
+                        if (err) {
+                            console.error("Error inserting into staff_positions:", err);
+                            return res.status(500).json({ success: false, error: "Failed to associate positions with staff member." });
+                        }
+
+                        // Format the staffId here
+                        const formattedStaffId = `STAFF${String(staffId).padStart(3, '0')}`;
+
+                        console.log(`Staff account for ${email} registered successfully.`);
+                        res.status(201).json({ success: true, message: `Account created successfully. Your Staff ID is: ${formattedStaffId}` });
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error("Staff signup error:", error);
+        res.status(500).json({ success: false, error: "An unexpected server error occurred." });
+    }
+});
+
+// Staff login API endpoint
+app.post("/api/staff/login", (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ success: false, error: "Email/Staff ID and password are required." });
+    }
+
+    let query;
+    let queryValue;
+
+    if (email.includes('@')) {
+        query = 'SELECT id, email, password_hash, is_registered FROM staff WHERE email = ?';
+        queryValue = email;
+    } else if (email.startsWith('STAFF')) {
+        const staffIdNumber = parseInt(email.substring(5), 10);
+        
+        if (isNaN(staffIdNumber)) {
+            return res.status(401).json({ success: false, error: "Invalid Staff ID format." });
+        }
+        
+        query = 'SELECT id, email, password_hash, is_registered FROM staff WHERE id = ?';
+        queryValue = staffIdNumber;
+    } else {
+        return res.status(401).json({ success: false, error: "Invalid credentials." });
+    }
+
+    db.query(query, [queryValue], async (err, results) => {
+        if (err) {
+            console.error("Login database query error:", err);
+            return res.status(500).json({ success: false, error: "An unexpected server error occurred." });
+        }
+
+        const staff = results[0];
+
+        if (!staff) {
+            return res.status(401).json({ success: false, error: "Invalid credentials." });
+        }
+
+        if (!staff.is_registered) {
+            return res.status(401).json({ success: false, error: "Account is not yet active. Please complete the registration process." });
+        }
+
+        try {
+            const passwordMatch = await bcrypt.compare(password, staff.password_hash);
+            
+            if (passwordMatch) {
+                // Return the formatted Staff ID on successful login
+                const formattedStaffId = `STAFF${String(staff.id).padStart(3, '0')}`;
+                return res.status(200).json({ success: true, message: "Login successful.", staffId: formattedStaffId });
+            } else {
+                return res.status(401).json({ success: false, error: "Invalid credentials." });
+            }
+        } catch (bcryptError) {
+            console.error("Bcrypt comparison error:", bcryptError);
+            return res.status(500).json({ success: false, error: "An unexpected error occurred during login." });
+        }
+    });
 });
 
 // Staff profile
@@ -1891,6 +1707,636 @@ app.post("/api/staff/logout", (req, res) => {
     res.json({ success: true });
   });
 });
+
+
+// Input validation
+const validateInput = (admissionNumber, password) => {
+  const admissionRegex = /^[A-Z0-9/]{6,17}$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+  return (
+    admissionRegex.test(admissionNumber) &&
+    (!password || passwordRegex.test(password))
+  );
+};
+
+// Student login
+app.post('/api/student/login', (req, res) => {
+  const { admissionNumber, password } = req.body;
+
+  if (!admissionNumber || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  if (!validateInput(admissionNumber)) {
+    return res.status(400).json({ success: false, message: 'Invalid admission number format.' });
+  }
+
+  db.query('SELECT * FROM students WHERE admission_number = ?', [admissionNumber], (err, results) => {
+    if (err) {
+      console.error('Login error:', err);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+
+    console.log('Query results:', results);
+
+    if (!results || results.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid Admission Number or Password' });
+    }
+
+    const student = results[0];
+    bcrypt.compare(password, student.password_hash, (err, validPassword) => {
+      if (err) {
+        console.error('Password comparison error:', err);
+        return res.status(500).json({ success: false, message: 'Server error' });
+      }
+
+      if (!validPassword) {
+        return res.status(401).json({ success: false, message: 'Invalid Admission Number or Password' });
+      }
+
+      req.session.student = {
+        id: student.id,
+        admissionNumber: student.admission_number,
+        name: `${student.first_name} ${student.last_name}`,
+      };
+
+      return res.json({ success: true, message: 'Login successful' });
+    });
+  });
+});
+
+// Get security question
+// Get Security Question
+app.get("/api/student/security-question/:admissionNumber", (req, res) => {
+  const admissionNumber = req.params.admissionNumber.trim().toUpperCase();
+
+  const query = "SELECT security_question FROM students WHERE admission_number = ?";
+  db.query(query, [admissionNumber], (err, results) => {
+    if (err) {
+      console.error("DB error:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+
+    if (results.length === 0) {
+      return res.json({ success: false, message: "Student not found" });
+    }
+
+    res.json({ success: true, securityQuestion: results[0].security_question });
+  });
+});
+// Verify Security Answer
+app.post("/api/student/verify-answer", (req, res) => {
+  const { admissionNumber, securityAnswer } = req.body;
+
+  if (!admissionNumber || !securityAnswer) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  const query = "SELECT security_answer FROM students WHERE admission_number = ?";
+  db.query(query, [admissionNumber.trim().toUpperCase()], (err, results) => {
+    if (err) {
+      console.error("DB error:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+
+    if (results.length === 0) {
+      return res.json({ success: false, message: "Student not found" });
+    }
+
+    const storedAnswer = results[0].security_answer?.trim().toUpperCase();
+    const providedAnswer = securityAnswer.trim().toUpperCase();
+
+    if (storedAnswer === providedAnswer) {
+      res.json({ success: true, message: "Answer verified" });
+    } else {
+      res.json({ success: false, message: "Incorrect security answer" });
+    }
+  });
+});
+// Reset Password
+app.post("/api/student/reset-password", async (req, res) => {
+  const { admissionNumber, newPassword } = req.body;
+
+  if (!admissionNumber || !newPassword) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const query = "UPDATE students SET password_hash = ? WHERE admission_number = ?";
+    db.query(query, [hashedPassword, admissionNumber.trim().toUpperCase()], (err, result) => {
+      if (err) {
+        console.error("DB error:", err);
+        return res.status(500).json({ success: false, message: "Server error" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.json({ success: false, message: "Student not found" });
+      }
+
+      res.json({ success: true, message: "Password reset successful" });
+    });
+  } catch (error) {
+    console.error("Hashing error:", error);
+    res.status(500).json({ success: false, message: "Error resetting password" });
+  }
+});
+// Student profile endpoint
+app.get("/api/student/profile", isAuthenticated, (req, res) => {
+  const query = `
+        SELECT s.id, s.name, s.email, s.phone, s.address, s.profile_picture, 
+               c.name AS course_name 
+        FROM students s 
+        LEFT JOIN courses c ON s.course_id = c.id 
+        WHERE s.id = ?
+    `
+
+  db.query(query, [req.session.studentId], (err, results) => {
+    if (err) {
+      console.error("Error fetching student profile:", err)
+      return res.status(500).json({ error: "Database error" })
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Student not found" })
+    }
+
+    const student = results[0]
+    student.profile_picture = normalizeProfilePath(student.profile_picture)
+    delete student.password_hash // Remove sensitive data
+
+    res.json({ success: true, student })
+  })
+})
+
+// Overview data endpoint
+app.get("/api/student/overview", isAuthenticated, (req, res) => {
+  const studentId = req.session.studentId
+
+  // Get assignments count
+  const assignmentsQuery = `
+        SELECT 
+            COUNT(*) as total,
+            COUNT(sub.id) as completed
+        FROM assignments a
+        LEFT JOIN students s ON s.course_id = a.course_id
+        LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id AND sub.student_id = s.id
+        WHERE s.id = ?
+    `
+
+  // Get overall grade
+  const gradeQuery = `
+        SELECT 
+            AVG(CASE WHEN sub.score IS NOT NULL THEN (sub.score / a.max_score) * 100 END) as assignment_avg,
+            (SELECT AVG((score / total_questions) * 100) FROM exam_results WHERE student_id = ?) as exam_avg
+        FROM assignments a
+        LEFT JOIN students s ON s.course_id = a.course_id
+        LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id AND sub.student_id = s.id
+        WHERE s.id = ?
+    `
+
+  // Get upcoming exams
+  const examsQuery = `
+        SELECT COUNT(*) as upcoming
+        FROM exams e
+        LEFT JOIN students s ON s.course_id = e.course_id
+        WHERE s.id = ? AND e.scheduled_date > NOW() AND e.is_active = 1
+    `
+
+  // Get recent activities
+  const activitiesQuery = `
+        (SELECT 'assignment' as type, a.title, 'New assignment posted' as description, a.created_at
+         FROM assignments a
+         LEFT JOIN students s ON s.course_id = a.course_id
+         WHERE s.id = ?
+         ORDER BY a.created_at DESC LIMIT 3)
+        UNION ALL
+        (SELECT 'result' as type, CONCAT('Assignment: ', a.title) as title, 
+         CONCAT('Score: ', sub.score, '/', a.max_score) as description, sub.graded_at as created_at
+         FROM assignment_submissions sub
+         JOIN assignments a ON sub.assignment_id = a.id
+         WHERE sub.student_id = ? AND sub.score IS NOT NULL
+         ORDER BY sub.graded_at DESC LIMIT 3)
+        ORDER BY created_at DESC LIMIT 5
+    `
+
+  Promise.all([
+    new Promise((resolve, reject) => {
+      db.query(assignmentsQuery, [studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results[0] || { total: 0, completed: 0 })
+      })
+    }),
+    new Promise((resolve, reject) => {
+      db.query(gradeQuery, [studentId, studentId], (err, results) => {
+        if (err) reject(err)
+        else {
+          const result = results[0] || {}
+          const assignmentAvg = result.assignment_avg || 0
+          const examAvg = result.exam_avg || 0
+          const overall = Math.round(assignmentAvg * 0.6 + examAvg * 0.3)
+          resolve({ overallGrade: overall })
+        }
+      })
+    }),
+    new Promise((resolve, reject) => {
+      db.query(examsQuery, [studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results[0] || { upcoming: 0 })
+      })
+    }),
+    new Promise((resolve, reject) => {
+      db.query(activitiesQuery, [studentId, studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results || [])
+      })
+    }),
+  ])
+    .then(([assignments, grade, exams, activities]) => {
+      res.json({
+        success: true,
+        stats: {
+          totalAssignments: assignments.total,
+          completedAssignments: assignments.completed,
+          overallGrade: grade.overallGrade,
+          upcomingExams: exams.upcoming,
+        },
+        recentActivities: activities,
+      })
+    })
+    .catch((err) => {
+      console.error("Overview data error:", err)
+      res.status(500).json({ success: false, error: "Failed to load overview data" })
+    })
+})
+
+// Payments endpoint
+app.get("/api/student/payments", isAuthenticated, (req, res) => {
+  const studentId = req.session.studentId
+
+  const paymentsQuery = `
+        SELECT * FROM payments 
+        WHERE student_id = ? 
+        ORDER BY payment_date DESC
+    `
+
+  // Get outstanding payments (this would be based on your business logic)
+  const outstandingQuery = `
+        SELECT 
+            'Registration' as type,
+            'Course registration fee' as description,
+            c.registration_fee as amount,
+            NULL as dueDate
+        FROM students s
+        JOIN courses c ON s.course_id = c.id
+        WHERE s.id = ? AND s.status = 'Applied'
+        AND NOT EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE p.student_id = s.id AND p.payment_type = 'Registration' AND p.status = 'Completed'
+        )
+    `
+
+  Promise.all([
+    new Promise((resolve, reject) => {
+      db.query(paymentsQuery, [studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results || [])
+      })
+    }),
+    new Promise((resolve, reject) => {
+      db.query(outstandingQuery, [studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results || [])
+      })
+    }),
+  ])
+    .then(([payments, outstanding]) => {
+      res.json({
+        success: true,
+        payments,
+        outstanding,
+      })
+    })
+    .catch((err) => {
+      console.error("Payments data error:", err)
+      res.status(500).json({ success: false, error: "Failed to load payments data" })
+    })
+})
+
+// Assignments endpoint
+app.get("/api/student/assignments", isAuthenticated, (req, res) => {
+  const studentId = req.session.studentId
+
+  const query = `
+        SELECT 
+            a.*,
+            sub.id as submission_id,
+            sub.submission_date,
+            sub.score,
+            sub.feedback,
+            sub.file_path as submission_file
+        FROM assignments a
+        LEFT JOIN students s ON s.course_id = a.course_id
+        LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id AND sub.student_id = s.id
+        WHERE s.id = ?
+        ORDER BY a.due_date DESC
+    `
+
+  db.query(query, [studentId], (err, results) => {
+    if (err) {
+      console.error("Assignments error:", err)
+      return res.status(500).json({ success: false, error: "Failed to load assignments" })
+    }
+
+    const assignments = results.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      instructions: row.instructions,
+      date_given: row.date_given,
+      due_date: row.due_date,
+      max_score: row.max_score,
+      submission: row.submission_id
+        ? {
+            submission_date: row.submission_date,
+            score: row.score,
+            feedback: row.feedback,
+            file_path: row.submission_file,
+          }
+        : null,
+    }))
+
+    res.json({ success: true, assignments })
+  })
+})
+
+// Submit assignment endpoint
+app.post("/api/student/submit-assignment", isAuthenticated, upload.single("assignmentFile"), (req, res) => {
+  const { assignmentId, submissionNotes } = req.body
+
+  if (!req.file) {
+    console.error("No file uploaded for assignment ID:", assignmentId)
+    return res.status(400).json({ success: false, message: "No file uploaded" })
+  }
+
+  const filePath = `/uploads/${req.file.filename}`
+
+  // Check if submission already exists
+  const checkQuery = `SELECT id FROM assignment_submissions WHERE assignment_id = ? AND student_id = ?`
+
+  db.query(checkQuery, [assignmentId, req.session.studentId], (err, results) => {
+    if (err) {
+      console.error("Error checking existing submission:", err)
+      return res.status(500).json({ success: false, message: "Database error" })
+    }
+
+    if (results.length > 0) {
+      // Update existing submission
+      const updateQuery = `
+        UPDATE assignment_submissions 
+        SET file_path = ?, submission_date = NOW(), notes = ?
+        WHERE id = ?
+      `
+
+      db.query(updateQuery, [filePath, submissionNotes || null, results[0].id], (err, result) => {
+        if (err) {
+          console.error("Error updating submission:", err)
+          return res.status(500).json({ success: false, message: "Update failed" })
+        }
+
+        console.log("Updated submission for assignment ID:", assignmentId)
+        res.json({ success: true, message: "Submission updated successfully" })
+      })
+    } else {
+      // Create new submission
+      const insertQuery = `
+        INSERT INTO assignment_submissions (assignment_id, student_id, file_path, submission_date, notes) 
+        VALUES (?, ?, ?, NOW(), ?)
+      `
+
+      db.query(insertQuery, [assignmentId, req.session.studentId, filePath, submissionNotes || null], (err, result) => {
+        if (err) {
+          console.error("Error creating submission:", err)
+          return res.status(500).json({ success: false, message: "Submission failed" })
+        }
+
+        console.log("Submitted new assignment for ID:", assignmentId)
+        res.json({ success: true, message: "Assignment submitted successfully" })
+      })
+    }
+  })
+})
+
+// Results endpoint
+app.get("/api/student/results", isAuthenticated, (req, res) => {
+  const studentId = req.session.studentId
+
+  const query = `
+        SELECT 
+            'Assignment' as type,
+            a.title,
+            sub.score,
+            a.max_score,
+            ROUND((sub.score / a.max_score) * 100) as percentage,
+            sub.graded_at as date
+        FROM assignment_submissions sub
+        JOIN assignments a ON sub.assignment_id = a.id
+        WHERE sub.student_id = ? AND sub.score IS NOT NULL
+        
+        UNION ALL
+        
+        SELECT 
+            e.exam_type as type,
+            e.title,
+            er.score,
+            er.total_questions as max_score,
+            ROUND((er.score / er.total_questions) * 100) as percentage,
+            er.completed_at as date
+        FROM exam_results er
+        JOIN exams e ON er.exam_id = e.id
+        WHERE er.student_id = ?
+        
+        ORDER BY date DESC
+    `
+
+  db.query(query, [studentId, studentId], (err, results) => {
+    if (err) {
+      console.error("Results error:", err)
+      return res.status(500).json({ success: false, error: "Failed to load results" })
+    }
+
+    // Calculate averages
+    const assignments = results.filter((r) => r.type === "Assignment")
+    const tests = results.filter((r) => r.type === "Test")
+    const exams = results.filter((r) => r.type === "Exam")
+
+    const assignmentAverage =
+      assignments.length > 0
+        ? Math.round(assignments.reduce((sum, a) => sum + a.percentage, 0) / assignments.length)
+        : 0
+
+    const testAverage =
+      tests.length > 0 ? Math.round(tests.reduce((sum, t) => sum + t.percentage, 0) / tests.length) : 0
+
+    const examAverage =
+      exams.length > 0 ? Math.round(exams.reduce((sum, e) => sum + e.percentage, 0) / exams.length) : 0
+
+    res.json({
+      success: true,
+      results: {
+        assignmentAverage,
+        testAverage,
+        examAverage,
+        detailed: results,
+      },
+    })
+  })
+})
+
+// Exams endpoint
+app.get("/api/student/exams", isAuthenticated, (req, res) => {
+  const studentId = req.session.studentId
+
+  const examsQuery = `
+        SELECT e.*
+        FROM exams e
+        LEFT JOIN students s ON s.course_id = e.course_id
+        WHERE s.id = ? AND e.scheduled_date > NOW()
+        ORDER BY e.scheduled_date ASC
+    `
+
+  const historyQuery = `
+        SELECT 
+            e.title as exam_title,
+            e.exam_type,
+            er.score,
+            er.total_questions,
+            er.time_taken_minutes,
+            er.completed_at
+        FROM exam_results er
+        JOIN exams e ON er.exam_id = e.id
+        WHERE er.student_id = ?
+        ORDER BY er.completed_at DESC
+    `
+
+  Promise.all([
+    new Promise((resolve, reject) => {
+      db.query(examsQuery, [studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results || [])
+      })
+    }),
+    new Promise((resolve, reject) => {
+      db.query(historyQuery, [studentId], (err, results) => {
+        if (err) reject(err)
+        else resolve(results || [])
+      })
+    }),
+  ])
+    .then(([exams, history]) => {
+      res.json({
+        success: true,
+        exams,
+        history,
+      })
+    })
+    .catch((err) => {
+      console.error("Exams data error:", err)
+      res.status(500).json({ success: false, error: "Failed to load exams data" })
+    })
+})
+
+// Resources endpoint
+app.get("/api/student/resources", isAuthenticated, (req, res) => {
+  const studentId = req.session.studentId
+
+  const query = `
+        SELECT 
+            r.*,
+            CONCAT(st.first_name, ' ', st.last_name) as uploaded_by
+        FROM resources r
+        LEFT JOIN students s ON s.course_id = r.course_id
+        LEFT JOIN staff st ON r.staff_id = st.id
+        WHERE s.id = ?
+        ORDER BY r.uploaded_at DESC
+    `
+
+  db.query(query, [studentId], (err, results) => {
+    if (err) {
+      console.error("Resources error:", err)
+      return res.status(500).json({ success: false, error: "Failed to load resources" })
+    }
+
+    res.json({ success: true, resources: results || [] })
+  })
+})
+
+// Update profile endpoint
+app.post("/api/student/update-profile", isAuthenticated, (req, res) => {
+  const { phone, address, profile_picture } = req.body
+
+  const query = `
+        UPDATE students 
+        SET phone = ?, address = ?, profile_picture = ?
+        WHERE id = ?
+    `
+
+  db.query(query, [phone || null, address || null, profile_picture || null, req.session.studentId], (err, result) => {
+    if (err) {
+      console.error("Error updating profile:", err)
+      return res.status(500).json({ error: "Database error" })
+    }
+
+    if (result.affectedRows === 0) {
+      console.error("No student updated for ID:", req.session.studentId)
+      return res.status(404).json({ error: "Student not found" })
+    }
+
+    console.log("Profile updated for student ID:", req.session.studentId)
+    res.json({ success: true })
+  })
+})
+
+// Update profile picture endpoint
+app.post("/api/student/update-profile-picture", isAuthenticated, upload.single("profilePicture"), (req, res) => {
+  const studentId = req.session.studentId
+  const profilePicture = req.file ? `/uploads/${req.file.filename}` : null
+
+  if (!profilePicture) {
+    return res.status(400).json({ success: false, error: "Profile picture is required" })
+  }
+
+  const query = `
+        UPDATE students 
+        SET profile_picture = ?
+        WHERE id = ?
+    `
+
+  db.query(query, [profilePicture, studentId], (err, result) => {
+    if (err) {
+      console.error("Profile picture update error:", err)
+      return res.status(500).json({ success: false, error: "Update failed" })
+    }
+
+    res.json({ success: true, profilePicture, message: "Profile picture updated successfully" })
+  })
+})
+
+// Logout endpoint
+app.post("/api/student/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Logout error:", err)
+      return res.status(500).json({ success: false, error: "Logout failed" })
+    }
+    res.json({
+      success: true,
+      message: "Logged out successfully",
+      redirect: "/student_login.html",
+    })
+  })
+})
 
 // Admin login
 app.post("/api/admin/login", async (req, res) => {
