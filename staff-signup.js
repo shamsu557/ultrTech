@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const positionsSelect = document.getElementById("positions");
     const passwordInput = document.getElementById("password");
     const confirmPasswordInput = document.getElementById("confirmPassword");
-    const profilePictureInput = document.getElementById("profilePicture"); // Get the file input
+    const profilePictureInput = document.getElementById("profilePicture");
     const alertContainer = document.querySelector('.alert-container');
     const bootstrap = window.bootstrap;
 
@@ -109,13 +109,13 @@ document.addEventListener("DOMContentLoaded", () => {
             showLoading();
             const response = await fetch("/api/staff/signup", {
                 method: "POST",
-                // Do NOT set Content-Type header with FormData; the browser handles it.
                 body: formData,
             });
 
             const result = await response.json();
 
             if (response.ok) {
+                // Display the staff ID from the server's response
                 if (result.success && result.message) {
                     showSuccess(result.message);
                 } else {
@@ -126,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.location.href = "/staff/login";
                 }, 2000);
             } else {
+                // If the server returns an error, use its message
                 throw new Error(result.error || "Registration failed. Please try again.");
             }
         } catch (error) {

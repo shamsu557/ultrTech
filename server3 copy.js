@@ -111,7 +111,7 @@ app.post("/api/staff/signup", upload.single('profilePicture'), async (req, res) 
     }
 
     try {
-        const checkEmailQuery = 'SELECT id, is_registered FROM staff WHERE email = ?';
+        const checkEmailQuery = 'SELECT id, staff_id, is_registered FROM staff WHERE email = ?';
         db.query(checkEmailQuery, [email], async (err, results) => {
             if (err) {
                 console.error("Database check error:", err);
@@ -129,7 +129,6 @@ app.post("/api/staff/signup", upload.single('profilePicture'), async (req, res) 
             
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            // Updated query to include profile_picture
             const updateStaffQuery = `
                 UPDATE staff
                 SET first_name = ?, last_name = ?, phone = ?, qualifications = ?, password_hash = ?, is_registered = TRUE, profile_picture = ?
@@ -166,11 +165,9 @@ app.post("/api/staff/signup", upload.single('profilePicture'), async (req, res) 
                             return res.status(500).json({ success: false, error: "Failed to associate positions with staff member." });
                         }
 
-                        // Format the staffId here
-                        const formattedStaffId = `STAFF${String(staffId).padStart(3, '0')}`;
-
+                        // Use the staff_id directly from the database record
                         console.log(`Staff account for ${email} registered successfully.`);
-                        res.status(201).json({ success: true, message: `Account created successfully. Your Staff ID is: ${formattedStaffId}` });
+                        res.status(201).json({ success: true, message: `Account created successfully. Your Staff ID is: ${staffRecord.staff_id}` });
                     });
                 });
             });
@@ -183,29 +180,21 @@ app.post("/api/staff/signup", upload.single('profilePicture'), async (req, res) 
 
 // Staff login API endpoint
 app.post("/api/staff/login", (req, res) => {
-    const { email, password } = req.body;
+    const { loginId, password } = req.body;
 
-    if (!email || !password) {
-        return res.status(400).json({ success: false, error: "Email/Staff ID and password are required." });
+    if (!loginId || !password) {
+        return res.status(400).json({ success: false, error: "Staff ID or Email and password are required." });
     }
 
     let query;
     let queryValue;
 
-    if (email.includes('@')) {
-        query = 'SELECT id, email, password_hash, is_registered FROM staff WHERE email = ?';
-        queryValue = email;
-    } else if (email.startsWith('STAFF')) {
-        const staffIdNumber = parseInt(email.substring(5), 10);
-        
-        if (isNaN(staffIdNumber)) {
-            return res.status(401).json({ success: false, error: "Invalid Staff ID format." });
-        }
-        
-        query = 'SELECT id, email, password_hash, is_registered FROM staff WHERE id = ?';
-        queryValue = staffIdNumber;
+    if (loginId.includes('@')) {
+        query = 'SELECT staff_id, password_hash, is_registered FROM staff WHERE email = ?';
+        queryValue = loginId;
     } else {
-        return res.status(401).json({ success: false, error: "Invalid credentials." });
+        query = 'SELECT staff_id, password_hash, is_registered FROM staff WHERE staff_id = ?';
+        queryValue = loginId;
     }
 
     db.query(query, [queryValue], async (err, results) => {
@@ -228,9 +217,7 @@ app.post("/api/staff/login", (req, res) => {
             const passwordMatch = await bcrypt.compare(password, staff.password_hash);
             
             if (passwordMatch) {
-                // Return the formatted Staff ID on successful login
-                const formattedStaffId = `STAFF${String(staff.id).padStart(3, '0')}`;
-                return res.status(200).json({ success: true, message: "Login successful.", staffId: formattedStaffId });
+                return res.status(200).json({ success: true, message: "Login successful.", staffId: staff.staff_id });
             } else {
                 return res.status(401).json({ success: false, error: "Invalid credentials." });
             }
