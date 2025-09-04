@@ -10,10 +10,21 @@
     <link href="/global.css" rel="stylesheet">
 </head>
 <body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container">
+            <a class="navbar-brand fw-bold brand-text" href="/">
+                <i class="fas fa-graduation-cap me-2"></i> UltraTech Global Solution
+            </a>
+            <div class="ms-auto">
+                <button class="btn btn-primary text-white" onclick="window.location.href='/'">
+                    Back to Home
+                </button>
+            </div>
+        </div>
+    </nav>
     <div class="container-fluid">
         <div class="row min-vh-100">
-            <!-- Left Side - Branding -->
-            <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center bg-primary">
+            <div class="col-lg-6  d-lg-flex align-items-center justify-content-center bg-primary">
                 <div class="text-center text-white">
                     <h1 class="display-4 fw-bold mb-4">Welcome Back</h1>
                     <p class="lead mb-4">Access your staff dashboard to manage students and assignments</p>
@@ -34,7 +45,6 @@
                 </div>
             </div>
 
-            <!-- Right Side - Login Form -->
             <div class="col-lg-6 d-flex align-items-center">
                 <div class="w-100 px-4 px-lg-5">
                     <div class="text-center mb-5">
@@ -44,10 +54,10 @@
 
                     <form id="staffLoginForm">
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
+                            <label for="email" class="form-label">Email Address or Staff ID</label>
                             <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                <input type="email" class="form-control" id="email" placeholder="Enter your email" required>
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="email" placeholder="Enter your email or Staff ID" required>
                             </div>
                         </div>
 
@@ -87,7 +97,6 @@
         </div>
     </div>
 
-    <!-- Forgot Password Modal -->
     <div class="modal fade" id="forgotPasswordModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">

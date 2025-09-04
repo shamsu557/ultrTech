@@ -1,24 +1,20 @@
 const mysql = require('mysql');
 
-// MySQL database connection configuration
-const dbConfig = {
-    host: process.env.DB_HOST || 'mysql-shamsu557.alwaysdata.net',  // Use environment variable or default
-    port: process.env.DB_PORT || 3306,                       // Default MySQL port or environment variable
-    user: process.env.DB_USER || 'shamsu557',               // MySQL username from environment
-    password: process.env.DB_PASSWORD || '@Shamsu1440',       // MySQL password from environment
-    database: process.env.DB_NAME || 'shamsu557_ultra_tech_dbase'            // Database name from environment
-};
+// MySQL connection
+const db = mysql.createConnection({
+  host: process.env.DB_HOST || 'mysql-shamsu557.alwaysdata.net',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'shamsu557',
+  password: process.env.DB_PASSWORD || '@Shamsu1440',
+  database: process.env.DB_NAME || 'shamsu557_ultra_tech_dbase'
+});
 
-// Create MySQL connection
-const db = mysql.createConnection(dbConfig);
-
-// Connect to MySQL database
 db.connect((err) => {
-    if (err) { 
-        console.error('Error connecting to MySQL database:', err);
-        return;
-    }
-    console.log('Connected to MySQL database');
+  if (err) {
+    console.error('Database connection error:', err);
+    throw err;
+  }
+  console.log('Connected to MySQL database');
 });
 
 // Export the database connection
@@ -73,6 +69,8 @@ module.exports = db;
 //     first_name VARCHAR(50) NOT NULL,
 //     last_name VARCHAR(50) NOT NULL,
 //     email VARCHAR(100) UNIQUE NOT NULL,
+      //  qualifications TEXT,
+      //  position VARCHAR(50),
 //     phone VARCHAR(20),
 //     password_hash VARCHAR(255),
 //     profile_picture VARCHAR(255),
@@ -108,6 +106,7 @@ module.exports = db;
 //     student_id INT,
 //     payment_type ENUM('Application', 'Registration', 'Exam', 'Certificate') NOT NULL,
 //     amount DECIMAL(10,2) NOT NULL,
+//     installment_type ENUM('full', 'half');
 //     reference_number VARCHAR(100) UNIQUE NOT NULL,
 //     paystack_reference VARCHAR(100),
 //     installment_number INT DEFAULT 1,
@@ -247,3 +246,24 @@ module.exports = db;
 // ('STAFF001', 'John', 'Doe', 'john.doe@ultratechglobalsolution.com.ng', '08012345678'),
 // ('STAFF002', 'Jane', 'Smith', 'jane.smith@ultratechglobalsolution.com.ng', '08087654321'),
 // ('STAFF003', 'Mike', 'Johnson', 'mike.johnson@ultratechglobalsolution.com.ng', '08098765432');
+
+// CREATE TABLE IF NOT EXISTS positions (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     name VARCHAR(50) UNIQUE NOT NULL
+// );
+// INSERT INTO positions (name) VALUES
+// ('Director'),
+// ('Deputy Director'),
+// ('Assistant Director'),
+// ('Senior Lecturer'),
+// ('Lecturer'),
+// ('Assistant Lecturer'),
+// ('Registrar'),
+// ('Accountant');
+// CREATE TABLE staff_positions (
+//     staff_id INT NOT NULL,
+//     position_id INT NOT NULL,
+//     PRIMARY KEY (staff_id, position_id),
+//     FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE,
+//     FOREIGN KEY (position_id) REFERENCES positions(id) ON DELETE CASCADE
+// );
