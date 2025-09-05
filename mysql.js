@@ -69,14 +69,17 @@ module.exports = db;
 //     first_name VARCHAR(50) NOT NULL,
 //     last_name VARCHAR(50) NOT NULL,
 //     email VARCHAR(100) UNIQUE NOT NULL,
-      //  qualifications TEXT,
-      //  position VARCHAR(50),
+//        qualifications TEXT,
+//        position VARCHAR(50),
+//       security_question VARCHAR(255) DEFAULT NULL,
+//       security_answer VARCHAR(255) DEFAULT NULL
 //     phone VARCHAR(20),
 //     password_hash VARCHAR(255),
 //     profile_picture VARCHAR(255),
 //     is_registered BOOLEAN DEFAULT FALSE,
 //     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 // );
+
 
 // -- Staff courses (many-to-many relationship)
 // CREATE TABLE IF NOT EXISTS staff_courses (
