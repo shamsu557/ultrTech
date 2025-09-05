@@ -110,7 +110,28 @@
                             <label for="confirmPassword" class="form-label">Confirm Password <span class="text-danger">*</span></label>
                             <input type="password" class="form-control" id="confirmPassword" required aria-required="true">
                         </div>
+                        
+                        <hr class="my-4">
+                        <div class="text-center mb-3">
+                            <h4 class="text-primary">Security Question</h4>
+                            <p class="text-muted">For password recovery purposes</p>
+                        </div>
 
+                        <div class="mb-3">
+                            <label for="securityQuestion" class="form-label">Security Question <span class="text-danger">*</span></label>
+                            <select class="form-select" id="securityQuestion" required aria-required="true">
+                                <option value="" disabled selected>Select a question...</option>
+                                <option value="What was your first pet's name?">What was your first pet's name?</option>
+                                <option value="In what city were you born?">In what city were you born?</option>
+                                <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+                                <option value="What was the name of your first school?">What was the name of your first school?</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="securityAnswer" class="form-label">Your Answer <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="securityAnswer" required aria-required="true">
+                        </div>
                         <div class="mb-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="agreeTerms" required aria-required="true">
