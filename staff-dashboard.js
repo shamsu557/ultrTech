@@ -1,5 +1,6 @@
 const API_URL = '/api';
 const createAssignmentModal = new bootstrap.Modal(document.getElementById('createAssignmentModal'));
+const editAssignmentModal = new bootstrap.Modal(document.getElementById('editAssignmentModal'));
 let courseProgressChart = null;
 
 /**
@@ -26,7 +27,6 @@ function showSection(sectionId) {
 
     document.getElementById('pageTitle').textContent = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
 
-    // Fetch and load data for the specific section
     if (sectionId === 'overview') {
         loadDashboardData();
     } else if (sectionId === 'students') {
@@ -37,8 +37,6 @@ function showSection(sectionId) {
         populateStaffProfile();
     } else if (sectionId === 'reports') {
         loadCourseProgressReport();
-    } else if (sectionId === 'settings') {
-        // No specific loading logic for settings, just show the section
     }
 }
 
@@ -58,7 +56,6 @@ async function loadCourseProgressReport() {
         if (response.ok && data.length > 0) {
             const ctx = document.getElementById('courseProgressChart').getContext('2d');
             
-            // Destroy existing chart if it exists
             if (courseProgressChart) {
                 courseProgressChart.destroy();
             }
@@ -148,16 +145,14 @@ async function populateStaffProfile() {
         }
         const data = await response.json();
         
-        // Populate sidebar profile
         const sidebarProfilePic = document.getElementById('sidebarProfilePic');
         const staffName = document.getElementById('staffName');
         const staffId = document.getElementById('staffId');
 
-        sidebarProfilePic.src = data.profilePic;
+        sidebarProfilePic.src = data.profilePic || '/Uploads/default-profile.jpg';
         staffName.textContent = `${data.first_name} ${data.last_name}`;
         staffId.textContent = `ID: ${data.id}`;
 
-        // Populate full profile section
         const profilePicture = document.getElementById('profilePicture');
         const profileName = document.getElementById('profileName');
         const profileId = document.getElementById('profileId');
@@ -165,16 +160,14 @@ async function populateStaffProfile() {
         const profileQualifications = document.getElementById('profileQualifications');
         const profileCourses = document.getElementById('profileCourses');
 
-        profilePicture.src = data.profilePic;
+        profilePicture.src = data.profilePic || '/Uploads/default-profile.jpg';
         profileName.textContent = `${data.first_name} ${data.last_name}`;
         profileId.textContent = `ID: ${data.id}`;
         profilePosition.textContent = data.positions || 'N/A';
         profileQualifications.textContent = data.qualifications || 'N/A';
         profileCourses.textContent = data.courses || 'N/A';
-
     } catch (error) {
         console.error('Error populating staff profile:', error);
-        // Fallback to default values
         document.getElementById('staffName').textContent = "Staff Name";
         document.getElementById('staffId').textContent = "ID: N/A";
     }
@@ -194,7 +187,7 @@ async function loadDashboardData() {
             
             let totalStudents = 0;
             const studentCountsContainer = document.getElementById('studentCountsContainer');
-            studentCountsContainer.innerHTML = ''; 
+            studentCountsContainer.innerHTML = '';
 
             if (statsData.studentCounts.length > 0) {
                 statsData.studentCounts.forEach(course => {
@@ -255,7 +248,7 @@ async function loadStudentsData() {
         const response = await fetch(`${API_URL}/students`);
         const studentsData = await response.json();
         const studentsTableBody = document.getElementById('studentsTableBody');
-        studentsTableBody.innerHTML = ''; // Clear previous content
+        studentsTableBody.innerHTML = '';
         if (response.ok && studentsData.length > 0) {
             studentsData.forEach(student => {
                 const row = document.createElement('tr');
@@ -281,35 +274,195 @@ async function loadStudentsData() {
 }
 
 /**
- * Fetches and populates the assignments table.
+ * Fetches and populates the assignments table with all 8 columns.
  */
 async function loadAssignmentsData() {
     try {
         const response = await fetch(`${API_URL}/assignments`);
         const assignmentsData = await response.json();
         const assignmentsTableBody = document.getElementById('assignmentsTableBody');
-        assignmentsTableBody.innerHTML = ''; // Clear previous content
+        assignmentsTableBody.innerHTML = '';
         if (response.ok && assignmentsData.length > 0) {
             assignmentsData.forEach(assignment => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${assignment.title}</td>
-                    <td>${assignment.course}</td>
-                    <td>${new Date(assignment.dueDate).toLocaleString()}</td>
-                    <td>${assignment.maxScore}</td>
-                    <td>${assignment.submissions}</td>
+                    <td class="truncate-text">${assignment.title || 'N/A'}</td>
+                    <td>${assignment.course || 'N/A'}</td>
+                    <td class="truncate-text">${assignment.description || 'N/A'}</td>
+                    <td class="truncate-text">${assignment.instructions || 'N/A'}</td>
+                    <td>${new Date(assignment.due_date).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}</td>
+                    <td>${assignment.max_score || 'N/A'}</td>
+                    <td>${assignment.submissions || 0}</td>
                     <td>
-                        <button class="btn btn-sm btn-info me-2"><i class="fas fa-eye"></i> View</button>
-                        <button class="btn btn-sm btn-danger"><i class="fas fa-trash-alt"></i> Delete</button>
+                        <button class="btn btn-sm btn-primary me-2 edit-assignment" data-id="${assignment.id}"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="btn btn-sm btn-danger delete-assignment" data-id="${assignment.id}"><i class="fas fa-trash-alt"></i> Delete</button>
                     </td>
                 `;
                 assignmentsTableBody.appendChild(row);
             });
+
+            // Add event listeners for edit and delete buttons
+            document.querySelectorAll('.edit-assignment').forEach(button => {
+                button.addEventListener('click', () => {
+                    const assignmentId = button.dataset.id;
+                    editAssignment(assignmentId);
+                });
+            });
+
+            document.querySelectorAll('.delete-assignment').forEach(button => {
+                button.addEventListener('click', () => {
+                    const assignmentId = button.dataset.id;
+                    deleteAssignment(assignmentId);
+                });
+            });
         } else {
-            assignmentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No assignments found.</td></tr>';
+            assignmentsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No assignments found.</td></tr>';
         }
     } catch (error) {
         console.error('Error fetching assignments:', error);
+        assignmentsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Failed to load assignments.</td></tr>';
+    }
+}
+
+/**
+ * Shows the edit assignment modal and populates it with assignment data.
+ * @param {string} assignmentId The ID of the assignment to edit.
+ */
+async function editAssignment(assignmentId) {
+    try {
+        const response = await fetch(`${API_URL}/assignments/${assignmentId}`);
+        const assignment = await response.json();
+        if (response.ok) {
+            // Populate the edit modal fields
+            document.getElementById('editAssignmentId').value = assignment.id;
+            document.getElementById('editAssignmentTitle').value = assignment.title || '';
+            document.getElementById('editAssignmentDescription').value = assignment.description || '';
+            document.getElementById('editAssignmentInstructions').value = assignment.instructions || '';
+            document.getElementById('editAssignmentDueDate').value = new Date(assignment.due_date).toISOString().slice(0, 16);
+            document.getElementById('editAssignmentMaxScore').value = assignment.max_score || '';
+
+            // Populate course dropdown
+            await populateCourseDropdown('editAssignmentCourse');
+            document.getElementById('editAssignmentCourse').value = assignment.course_id || '';
+
+            editAssignmentModal.show();
+        } else {
+            throw new Error('Failed to fetch assignment data.');
+        }
+    } catch (error) {
+        console.error('Error loading assignment for edit:', error);
+        document.getElementById('assignmentsSection').innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                Failed to load assignment data.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        ` + document.getElementById('assignmentsSection').innerHTML;
+    }
+}
+
+/**
+ * Updates an assignment by submitting form data to the backend.
+ */
+async function updateAssignment() {
+    const assignmentId = document.getElementById('editAssignmentId').value;
+    const title = document.getElementById('editAssignmentTitle').value;
+    const course_id = document.getElementById('editAssignmentCourse').value;
+    const description = document.getElementById('editAssignmentDescription').value;
+    const instructions = document.getElementById('editAssignmentInstructions').value;
+    const due_date = document.getElementById('editAssignmentDueDate').value;
+    const max_score = document.getElementById('editAssignmentMaxScore').value;
+
+    const updatedAssignment = {
+        title,
+        course_id,
+        description,
+        instructions,
+        due_date,
+        max_score
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/assignments/${assignmentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedAssignment)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            editAssignmentModal.hide();
+            loadAssignmentsData();
+            document.getElementById('assignmentsSection').innerHTML = `
+                <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                    ${result.message || 'Assignment updated successfully.'}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            ` + document.getElementById('assignmentsSection').innerHTML;
+        } else {
+            document.getElementById('editAssignmentMessage').innerHTML = `
+                <div class="alert alert-danger">${result.error || 'Failed to update assignment.'}</div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error updating assignment:', error);
+        document.getElementById('editAssignmentMessage').innerHTML = `
+            <div class="alert alert-danger">An unexpected error occurred.</div>
+        `;
+    }
+}
+
+/**
+ * Deletes an assignment from the backend.
+ * @param {string} assignmentId The ID of the assignment to delete.
+ */
+async function deleteAssignment(assignmentId) {
+    if (!confirm('Are you sure you want to delete this assignment?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/assignments/${assignmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            loadAssignmentsData();
+            document.getElementById('assignmentsSection').innerHTML = `
+                <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                    ${result.message || 'Assignment deleted successfully.'}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            ` + document.getElementById('assignmentsSection').innerHTML;
+        } else {
+            document.getElementById('assignmentsSection').innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                    ${result.error || 'Failed to delete assignment.'}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            ` + document.getElementById('assignmentsSection').innerHTML;
+        }
+    } catch (error) {
+        console.error('Error deleting assignment:', error);
+        document.getElementById('assignmentsSection').innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                An unexpected error occurred.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        ` + document.getElementById('assignmentsSection').innerHTML;
     }
 }
 
@@ -348,49 +501,38 @@ async function createAssignment() {
         if (response.ok) {
             createAssignmentModal.hide();
             loadAssignmentsData();
-            // Show a success message
-            const assignmentsSection = document.getElementById('assignmentsSection');
-            assignmentsSection.innerHTML = `
+            document.getElementById('assignmentsSection').innerHTML = `
                 <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-                    ${result.message}
+                    ${result.message || 'Assignment created successfully.'}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-            ` + assignmentsSection.innerHTML;
+            ` + document.getElementById('assignmentsSection').innerHTML;
         } else {
-            // Show an error message
-            const assignmentsSection = document.getElementById('assignmentsSection');
-            assignmentsSection.innerHTML = `
-                <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-                    ${result.error || 'Failed to create assignment.'}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            ` + assignmentsSection.innerHTML;
+            document.getElementById('assignmentMessage').innerHTML = `
+                <div class="alert alert-danger">${result.error || 'Failed to create assignment.'}</div>
+            `;
         }
     } catch (error) {
         console.error('Error creating assignment:', error);
-        // Show a general error message
-        const assignmentsSection = document.getElementById('assignmentsSection');
-        assignmentsSection.innerHTML = `
-            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-                An unexpected error occurred.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        ` + assignmentsSection.innerHTML;
+        document.getElementById('assignmentMessage').innerHTML = `
+            <div class="alert alert-danger">An unexpected error occurred.</div>
+        `;
     }
 }
 
 /**
- * Fetches and populates the course dropdown for the assignment creation modal.
+ * Fetches and populates the course dropdown for assignment modals.
+ * @param {string} dropdownId The ID of the dropdown element to populate.
  */
-async function populateCourseDropdown() {
+async function populateCourseDropdown(dropdownId = 'assignmentCourse') {
     try {
-        const response = await fetch(`${API_URL}/courses`);
+        const response = await fetch(`${API_URL}/courses/staff`);
         const courses = await response.json();
-        const dropdown = document.getElementById('assignmentCourse');
-        dropdown.innerHTML = '<option value="">Select a Course</option>'; // Default option
+        const dropdown = document.getElementById(dropdownId);
+        dropdown.innerHTML = '<option value="">Select a Course</option>';
         courses.forEach(course => {
             const option = document.createElement('option');
-            option.value = course.id; // Use course ID for submission
+            option.value = course.id;
             option.textContent = course.name;
             dropdown.appendChild(option);
         });
@@ -419,7 +561,6 @@ async function updateProfilePicture() {
 
         if (response.ok) {
             messageDiv.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
-            // Re-populate profile to show the new picture
             populateStaffProfile();
         } else {
             messageDiv.innerHTML = `<div class="alert alert-danger">${result.error || 'Failed to update profile picture.'}</div>`;
@@ -504,11 +645,9 @@ function showCreateAssignmentModal() {
 
 // Initial setup on page load
 document.addEventListener('DOMContentLoaded', () => {
-    // Populate staff profile and load the default section
     populateStaffProfile();
     showSection('overview');
 
-    // Set up navigation link event listeners
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -517,20 +656,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Set up create assignment button event listeners
     document.getElementById('createAssignmentButton').addEventListener('click', showCreateAssignmentModal);
     document.getElementById('createAssignmentButton2').addEventListener('click', showCreateAssignmentModal);
 
-    // Set up logout button event listener
     document.getElementById('logoutBtn').addEventListener('click', (e) => {
         e.preventDefault();
         logout();
     });
 
-    // Set up form submission event listeners
     document.getElementById('createAssignmentForm').addEventListener('submit', (e) => {
         e.preventDefault();
         createAssignment();
+    });
+
+    document.getElementById('editAssignmentForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        updateAssignment();
     });
 
     document.getElementById('profilePictureForm').addEventListener('submit', (e) => {
@@ -543,7 +684,6 @@ document.addEventListener('DOMContentLoaded', () => {
         changePassword();
     });
 
-    // Set up export students button (placeholder for future implementation)
     document.getElementById('exportStudentsBtn').addEventListener('click', () => {
         alert('Export functionality not yet implemented.');
     });

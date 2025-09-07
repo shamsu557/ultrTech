@@ -1741,18 +1741,24 @@ app.get('/api/courses', isAuthenticatedStaff, (req, res) => {
     });
 });
 
-// API to get a list of all positions
-app.get('/api/positions', (req, res) => {
-    const query = 'SELECT id, name FROM positions';
-    db.query(query, (err, results) => {
+// API to get a list of courses a staff member is attached to
+app.get('/api/courses/staff', isAuthenticatedStaff, (req, res) => {
+    const staffId = req.session.staffDatabaseId;
+    const query = `
+        SELECT c.id, c.name
+        FROM courses c
+        JOIN staff_courses sc ON c.id = sc.course_id
+        WHERE sc.staff_id = ?
+        ORDER BY c.name
+    `;
+    db.query(query, [staffId], (err, results) => {
         if (err) {
-            console.error("Error fetching positions:", err);
-            return res.status(500).json({ success: false, error: 'Failed to retrieve positions.' });
+            console.error("Error fetching staff courses:", err);
+            return res.status(500).json({ error: "Database error" });
         }
-        res.json({ success: true, positions: results });
+        res.json(results);
     });
 });
-
 // Staff signup API endpoint
 app.post("/api/staff/signup", upload.single('profilePicture'), async (req, res) => {
     let { firstName, lastName, email, phone, qualifications, password, securityQuestion, securityAnswer, courseIds, positionIds } = req.body;
@@ -2288,8 +2294,11 @@ app.get('/api/assignments', isAuthenticatedStaff, (req, res) => {
             a.id,
             a.title,
             c.name AS course,
-            a.due_date AS dueDate,
-            a.max_score AS maxScore,
+            a.description,
+            a.instructions,
+            a.due_date,
+            a.max_score,
+            a.course_id,
             (SELECT COUNT(*) FROM assignment_submissions sub WHERE sub.assignment_id = a.id) AS submissions
         FROM assignments a
         JOIN staff_courses sc ON a.course_id = sc.course_id
@@ -2307,6 +2316,40 @@ app.get('/api/assignments', isAuthenticatedStaff, (req, res) => {
     });
 });
 
+// API to get a single assignment
+app.get('/api/assignments/:id', isAuthenticatedStaff, (req, res) => {
+    const staffId = req.session.staffDatabaseId;
+    const assignmentId = req.params.id;
+
+    const query = `
+        SELECT
+            a.id,
+            a.title,
+            c.name AS course,
+            a.description,
+            a.instructions,
+            a.due_date,
+            a.max_score,
+            a.course_id,
+            (SELECT COUNT(*) FROM assignment_submissions sub WHERE sub.assignment_id = a.id) AS submissions
+        FROM assignments a
+        JOIN staff_courses sc ON a.course_id = sc.course_id
+        JOIN courses c ON a.course_id = c.id
+        WHERE a.id = ? AND sc.staff_id = ?
+    `;
+
+    db.query(query, [assignmentId, staffId], (err, results) => {
+        if (err) {
+            console.error('Error fetching assignment:', err);
+            return res.status(500).json({ error: 'Failed to fetch assignment data.' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Assignment not found or you are not authorized to access it.' });
+        }
+        res.json(results[0]);
+    });
+});
+
 // API to create a new assignment
 app.post('/api/assignments', isAuthenticatedStaff, (req, res) => {
     const { title, course_id, description, instructions, date_given, due_date, max_score } = req.body;
@@ -2316,20 +2359,114 @@ app.post('/api/assignments', isAuthenticatedStaff, (req, res) => {
         return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    const insertQuery = `
-        INSERT INTO assignments (course_id, staff_id, title, description, instructions, date_given, due_date, max_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    const values = [course_id, staffId, title, description, instructions, date_given, due_date, max_score];
-    
-    db.query(insertQuery, values, (err, result) => {
-        if (err) {
-            console.error('Error inserting new assignment:', err);
+    // Verify staff is authorized to create assignments for the course
+    const authQuery = 'SELECT * FROM staff_courses WHERE staff_id = ? AND course_id = ?';
+    db.query(authQuery, [staffId, course_id], (authErr, authResults) => {
+        if (authErr) {
+            console.error('Error verifying course authorization:', authErr);
             return res.status(500).json({ error: 'Failed to create assignment.' });
         }
-        res.status(201).json({ message: 'Assignment created successfully.', assignmentId: result.insertId });
+        if (authResults.length === 0) {
+            return res.status(403).json({ error: 'You are not authorized to create assignments for this course.' });
+        }
+
+        const insertQuery = `
+            INSERT INTO assignments (course_id, staff_id, title, description, instructions, date_given, due_date, max_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        const values = [course_id, staffId, title, description, instructions, date_given, due_date, max_score];
+        
+        db.query(insertQuery, values, (err, result) => {
+            if (err) {
+                console.error('Error inserting new assignment:', err);
+                return res.status(500).json({ error: 'Failed to create assignment.' });
+            }
+            res.status(201).json({ message: 'Assignment created successfully.', assignmentId: result.insertId });
+        });
     });
 });
+
+// API to update an assignment
+app.put('/api/assignments/:id', isAuthenticatedStaff, (req, res) => {
+    const assignmentId = req.params.id;
+    const { title, course_id, description, instructions, due_date, max_score } = req.body;
+    const staffId = req.session.staffDatabaseId;
+
+    if (!title || !course_id || !instructions || !due_date || !max_score) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    // Verify staff is authorized to update the assignment
+    const authQuery = `
+        SELECT a.id
+        FROM assignments a
+        JOIN staff_courses sc ON a.course_id = sc.course_id
+        WHERE a.id = ? AND sc.staff_id = ? AND sc.course_id = ?
+    `;
+    db.query(authQuery, [assignmentId, staffId, course_id], (authErr, authResults) => {
+        if (authErr) {
+            console.error('Error verifying assignment authorization:', authErr);
+            return res.status(500).json({ error: 'Failed to update assignment.' });
+        }
+        if (authResults.length === 0) {
+            return res.status(403).json({ error: 'You are not authorized to update this assignment or the course is invalid.' });
+        }
+
+        const updateQuery = `
+            UPDATE assignments
+            SET title = ?, course_id = ?, description = ?, instructions = ?, due_date = ?, max_score = ?
+            WHERE id = ?
+        `;
+        const values = [title, course_id, description, instructions, due_date, max_score, assignmentId];
+
+        db.query(updateQuery, values, (err, result) => {
+            if (err) {
+                console.error('Error updating assignment:', err);
+                return res.status(500).json({ error: 'Failed to update assignment.' });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Assignment not found.' });
+            }
+            res.json({ message: 'Assignment updated successfully.' });
+        });
+    });
+});
+
+// API to delete an assignment
+app.delete('/api/assignments/:id', isAuthenticatedStaff, (req, res) => {
+    const assignmentId = req.params.id;
+    const staffId = req.session.staffDatabaseId;
+
+    // Verify staff is authorized to delete the assignment
+    const authQuery = `
+        SELECT a.id
+        FROM assignments a
+        JOIN staff_courses sc ON a.course_id = sc.course_id
+        WHERE a.id = ? AND sc.staff_id = ?
+    `;
+    db.query(authQuery, [assignmentId, staffId], (authErr, authResults) => {
+        if (authErr) {
+            console.error('Error verifying assignment authorization:', authErr);
+            return res.status(500).json({ error: 'Failed to delete assignment.' });
+        }
+        if (authResults.length === 0) {
+            return res.status(403).json({ error: 'You are not authorized to delete this assignment.' });
+        }
+
+        const deleteQuery = 'DELETE FROM assignments WHERE id = ?';
+        db.query(deleteQuery, [assignmentId], (err, result) => {
+            if (err) {
+                console.error('Error deleting assignment:', err);
+                return res.status(500).json({ error: 'Failed to delete assignment.' });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Assignment not found.' });
+            }
+            res.json({ message: 'Assignment deleted successfully.' });
+        });
+    });
+});
+
 // Admin login
 app.post("/api/admin/login", async (req, res) => {
   const { username, password, role } = req.body;
