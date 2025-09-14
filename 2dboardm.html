@@ -243,31 +243,30 @@ router.post("/change-credentials", [isAuthenticatedAdmin], (req, res) => {
   );
 });
 // Admin management routes
+// Create new admin
 router.post("/users", [isAuthenticatedAdmin, isAdmin], (req, res) => {
   const { username, password, role } = req.body;
+
   if (!username || !password || !role) {
-    console.error("Missing fields for new admin creation");
     return res.status(400).json({ success: false, error: "All fields are required." });
   }
-  if (!["Deputy Admin", "Assistant Admin"].includes(role)) {
-    console.error("Invalid role for admin creation:", role);
+
+  if (!["Admin", "Deputy Admin", "Assistant Admin"].includes(role)) {
     return res.status(400).json({ success: false, error: "Invalid role" });
   }
 
   bcrypt.hash(password, 10, (hashErr, hashedPassword) => {
     if (hashErr) {
-      console.error("Error hashing password:", hashErr);
       return res.status(500).json({ success: false, error: "Server error" });
     }
+
     db.query(
       "INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)",
       [username, hashedPassword, role],
       (err, result) => {
         if (err) {
-          console.error("Error creating admin:", err);
           return res.status(500).json({ success: false, error: "Database error" });
         }
-        console.log("Admin created:", { id: result.insertId, username });
         res.json({ success: true, message: "Admin created successfully." });
       }
     );
@@ -294,12 +293,10 @@ router.put("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
   const { username, role } = req.body;
 
   if (!username || !role) {
-    console.error("Missing fields for admin update ID:", adminId);
     return res.status(400).json({ success: false, error: "Username and role are required." });
   }
 
-  if (!["Deputy Admin", "Assistant Admin"].includes(role)) {
-    console.error("Invalid role for admin update:", role);
+  if (!["Admin", "Deputy Admin", "Assistant Admin"].includes(role)) {
     return res.status(400).json({ success: false, error: "Invalid role" });
   }
 
@@ -308,14 +305,11 @@ router.put("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
     [username, role, adminId],
     (err, result) => {
       if (err) {
-        console.error("Error updating admin:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
       if (result.affectedRows === 0) {
-        console.error("No admin found for update ID:", adminId);
         return res.status(404).json({ success: false, error: "Admin not found." });
       }
-      console.log("Admin updated:", { id: adminId });
       res.json({ success: true, message: "Admin updated successfully." });
     }
   );
@@ -334,22 +328,23 @@ router.delete("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
       return res.status(500).json({ success: false, error: "Database error" });
     }
     if (results.length === 0) {
-      console.error("No admin found for deletion ID:", userId);
       return res.status(404).json({ success: false, error: "Admin not found" });
     }
 
     const role = results[0].role;
+
+    // 🚨 Put the block right here
     if (["Admin", "SuperAdmin"].includes(role)) {
       return res.status(403).json({ success: false, error: "Cannot delete Admin or SuperAdmin accounts." });
     }
 
+    // If not Admin/SuperAdmin, allow deletion
     db.query("DELETE FROM admins WHERE id = ?", [userId], (err, result) => {
       if (err) {
         console.error("Error deleting admin:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
       if (result.affectedRows === 0) {
-        console.error("No admin found for deletion ID:", userId);
         return res.status(404).json({ success: false, error: "Admin not found" });
       }
       console.log("Admin deleted:", { id: userId });
@@ -357,6 +352,7 @@ router.delete("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
     });
   });
 });
+
 
 // Staff management routes
 // Staff management routes
@@ -970,7 +966,6 @@ router.get("/auth-check", isAuthenticatedAdmin, (req, res) => {
 });
 
 module.exports = router;
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1111,7 +1106,7 @@ module.exports = router;
       <div id="students-tab" class="tab-content pt-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-2xl font-bold">Student Management</h2>
-          <button id="add-student-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Student</button>
+          <button id="add-student-button" class="bg-white-600 text-white d-none py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300"></button>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -1302,7 +1297,6 @@ module.exports = router;
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.positions || 'N/A'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.courses || 'N/A'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-              <button class="edit-button text-indigo-600 hover:text-indigo-900" data-id="${person.id}" data-type="staff">Edit</button>
               <button class="delete-button text-red-600 hover:text-red-900" data-id="${person.id}" data-type="staff">Delete</button>
             </td>
           `;
@@ -1614,13 +1608,15 @@ module.exports = router;
             <label class="block text-gray-700 font-medium mb-2">Password</label>
             <input type="password" name="password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
           </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Role</label>
-            <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option value="Deputy Admin">Deputy Admin</option>
-              <option value="Assistant Admin">Assistant Admin</option>
-            </select>
-          </div>
+         <div class="mb-4">
+  <label class="block text-gray-700 font-medium mb-2">Role</label>
+  <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+    <option value="Admin">Admin</option>
+    <option value="Deputy Admin">Deputy Admin</option>
+    <option value="Assistant Admin">Assistant Admin</option>
+  </select>
+</div>
+
         `;
         currentAction = 'add-admin';
         showModal('Add New Admin', formHtml, async (e) => {
