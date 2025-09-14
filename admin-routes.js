@@ -4,8 +4,30 @@ const bcrypt = require("bcryptjs");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+const session = require("express-session");
 const db = require("./mysql");
-const multer = require('multer');
+const multer = require("multer");
+const MySQLStore = require("express-mysql-session")(session);
+
+// Session store configuration
+const sessionStore = new MySQLStore({
+  host: process.env.DB_HOST || "mysql-shamsu557.alwaysdata.net",
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || "shamsu557",
+  password: process.env.DB_PASSWORD || "@Shamsu1440",
+  database: process.env.DB_NAME || "shamsu557_ultra_tech_dbase",
+});
+
+// Middleware to configure session
+router.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    store: sessionStore,
+    cookie: { secure: process.env.NODE_ENV === "production", maxAge: 24 * 60 * 60 * 1000 }, // 24 hours
+  })
+);
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
@@ -19,7 +41,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 const upload = multer({
@@ -32,16 +54,16 @@ const upload = multer({
     if (extname && mimetype) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, Word, ZIP, RAR, JPEG, JPG, and PNG are allowed.'));
+      cb(new Error("Invalid file type. Only PDF, Word, ZIP, RAR, JPEG, JPG, and PNG are allowed."));
     }
-  }
+  },
 });
 
 // Middleware to check if the user is an authenticated admin
 const isAuthenticatedAdmin = (req, res, next) => {
   if (!req.session || !req.session.adminId) {
     console.error("Unauthorized access attempt at", new Date().toISOString());
-    return res.status(401).json({ success: false, error: "Not authenticated. Session expired or invalid." });
+    return res.status(401).json({ success: false, error: "Not authenticated. Please log in." });
   }
   db.query("SELECT role FROM admins WHERE id = ?", [req.session.adminId], (err, results) => {
     if (err) {
@@ -78,12 +100,14 @@ router.post("/login", (req, res) => {
         console.error("Error during login:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
+
       if (results.length === 0) {
         bcrypt.hash(initialPassword, 10, (hashErr, hashedPassword) => {
           if (hashErr) {
             console.error("Error hashing password:", hashErr);
             return res.status(500).json({ success: false, error: "Server error" });
           }
+
           db.query(
             "INSERT INTO admins (username, password_hash, role, is_first_login) VALUES (?, ?, 'Admin', 1)",
             [initialUsername, hashedPassword],
@@ -92,22 +116,34 @@ router.post("/login", (req, res) => {
                 console.error("Error creating admin:", insertErr);
                 return res.status(500).json({ success: false, error: "Failed to set up admin" });
               }
+
               req.session.adminId = result.insertId;
               req.session.adminRole = "Admin";
-              console.log("Initial admin created:", { id: result.insertId });
-              res.json({ success: true, message: "Initial login successful.", isFirstLogin: true, adminRole: "Admin" });
+
+              req.session.save(() => {
+                console.log("Initial admin created:", { id: result.insertId });
+                res.json({
+                  success: true,
+                  message: "Initial login successful.",
+                  isFirstLogin: true,
+                  adminRole: "Admin",
+                });
+              });
             }
           );
         });
       } else {
         req.session.adminId = results[0].id;
         req.session.adminRole = "Admin";
-        console.log("Initial admin login:", { id: results[0].id });
-        res.json({
-          success: true,
-          message: "Initial login successful.",
-          isFirstLogin: results[0].is_first_login === 1,
-          adminRole: "Admin"
+
+        req.session.save(() => {
+          console.log("Initial admin login:", { id: results[0].id });
+          res.json({
+            success: true,
+            message: "Initial login successful.",
+            isFirstLogin: results[0].is_first_login === 1,
+            adminRole: "Admin",
+          });
         });
       }
     });
@@ -120,19 +156,29 @@ router.post("/login", (req, res) => {
           console.error("Error during login:", err);
           return res.status(500).json({ success: false, error: "Database error" });
         }
+
         if (results.length === 0) {
           console.error("Invalid credentials for username:", username);
           return res.status(401).json({ success: false, error: "Invalid username or password" });
         }
+
         bcrypt.compare(password, results[0].password_hash, (compareErr, isMatch) => {
           if (compareErr || !isMatch) {
             console.error("Invalid credentials for username:", username);
             return res.status(401).json({ success: false, error: "Invalid username or password" });
           }
+
           req.session.adminId = results[0].id;
           req.session.adminRole = results[0].role;
-          console.log("Admin logged in:", { id: results[0].id, role: results[0].role });
-          res.json({ success: true, isFirstLogin: results[0].is_first_login === 1, adminRole: results[0].role });
+
+          req.session.save(() => {
+            console.log("Admin logged in:", { id: results[0].id, role: results[0].role });
+            res.json({
+              success: true,
+              isFirstLogin: results[0].is_first_login === 1,
+              adminRole: results[0].role,
+            });
+          });
         });
       }
     );
@@ -140,7 +186,7 @@ router.post("/login", (req, res) => {
 });
 
 // Change credentials route
-router.post("/change-credentials", [isAuthenticatedAdmin, isAdmin], (req, res) => {
+router.post("/change-credentials", [isAuthenticatedAdmin], (req, res) => {
   const { newUsername, newPassword } = req.body;
   const adminId = req.session.adminId;
 
@@ -149,56 +195,78 @@ router.post("/change-credentials", [isAuthenticatedAdmin, isAdmin], (req, res) =
     return res.status(400).json({ success: false, error: "New username and password are required." });
   }
 
-  bcrypt.hash(newPassword, 10, (hashErr, hashedPassword) => {
-    if (hashErr) {
-      console.error("Error hashing password:", hashErr);
-      return res.status(500).json({ success: false, error: "Server error" });
-    }
-    db.query(
-      "UPDATE admins SET username = ?, password_hash = ?, is_first_login = 0 WHERE id = ?",
-      [newUsername, hashedPassword, adminId],
-      (err, result) => {
-        if (err) {
-          console.error("Error changing credentials:", err);
-          return res.status(500).json({ success: false, error: "Database error" });
-        }
-        if (result.affectedRows === 0) {
-          console.error("No admin updated for ID:", adminId);
-          return res.status(404).json({ success: false, error: "Admin not found" });
-        }
-        console.log("Credentials updated for admin ID:", adminId);
-        res.json({ success: true, message: "Credentials updated successfully. Please log in again." });
+  // Check if this is the first login
+  db.query(
+    "SELECT is_first_login FROM admins WHERE id = ?",
+    [adminId],
+    (err, results) => {
+      if (err) {
+        console.error("Error checking first login status:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
       }
-    );
-  });
-});
+      if (results.length === 0) {
+        console.error("Admin not found for ID:", adminId);
+        return res.status(404).json({ success: false, error: "Admin not found" });
+      }
 
+      const isFirstLogin = results[0].is_first_login === 1;
+
+      // Only enforce isAdmin middleware if not first login
+      if (!isFirstLogin && req.session.adminRole !== "Admin") {
+        console.error("Unauthorized access attempt by non-Admin:", adminId);
+        return res.status(403).json({ success: false, error: "Unauthorized access. Admin role required." });
+      }
+
+      bcrypt.hash(newPassword, 10, (hashErr, hashedPassword) => {
+        if (hashErr) {
+          console.error("Error hashing password:", hashErr);
+          return res.status(500).json({ success: false, error: "Server error" });
+        }
+        db.query(
+          "UPDATE admins SET username = ?, password_hash = ?, is_first_login = 0 WHERE id = ?",
+          [newUsername, hashedPassword, adminId],
+          (err, result) => {
+            if (err) {
+              console.error("Error changing credentials:", err);
+              return res.status(500).json({ success: false, error: "Database error" });
+            }
+            if (result.affectedRows === 0) {
+              console.error("No admin updated for ID:", adminId);
+              return res.status(404).json({ success: false, error: "Admin not found" });
+            }
+            console.log("Credentials updated for admin ID:", adminId);
+            res.json({ success: true, message: "Credentials updated successfully. Please log in again." });
+          }
+        );
+      });
+    }
+  );
+});
 // Admin management routes
+// Create new admin
 router.post("/users", [isAuthenticatedAdmin, isAdmin], (req, res) => {
   const { username, password, role } = req.body;
+
   if (!username || !password || !role) {
-    console.error("Missing fields for new admin creation");
     return res.status(400).json({ success: false, error: "All fields are required." });
   }
-  if (!['Deputy Admin', 'Assistant Admin'].includes(role)) {
-    console.error("Invalid role for admin creation:", role);
+
+  if (!["Admin", "Deputy Admin", "Assistant Admin"].includes(role)) {
     return res.status(400).json({ success: false, error: "Invalid role" });
   }
 
   bcrypt.hash(password, 10, (hashErr, hashedPassword) => {
     if (hashErr) {
-      console.error("Error hashing password:", hashErr);
       return res.status(500).json({ success: false, error: "Server error" });
     }
+
     db.query(
       "INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)",
       [username, hashedPassword, role],
       (err, result) => {
         if (err) {
-          console.error("Error creating admin:", err);
           return res.status(500).json({ success: false, error: "Database error" });
         }
-        console.log("Admin created:", { id: result.insertId, username });
         res.json({ success: true, message: "Admin created successfully." });
       }
     );
@@ -225,12 +293,10 @@ router.put("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
   const { username, role } = req.body;
 
   if (!username || !role) {
-    console.error("Missing fields for admin update ID:", adminId);
     return res.status(400).json({ success: false, error: "Username and role are required." });
   }
 
-  if (!['Deputy Admin', 'Assistant Admin'].includes(role)) {
-    console.error("Invalid role for admin update:", role);
+  if (!["Admin", "Deputy Admin", "Assistant Admin"].includes(role)) {
     return res.status(400).json({ success: false, error: "Invalid role" });
   }
 
@@ -239,14 +305,11 @@ router.put("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
     [username, role, adminId],
     (err, result) => {
       if (err) {
-        console.error("Error updating admin:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
       if (result.affectedRows === 0) {
-        console.error("No admin found for update ID:", adminId);
         return res.status(404).json({ success: false, error: "Admin not found." });
       }
-      console.log("Admin updated:", { id: adminId });
       res.json({ success: true, message: "Admin updated successfully." });
     }
   );
@@ -265,22 +328,23 @@ router.delete("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
       return res.status(500).json({ success: false, error: "Database error" });
     }
     if (results.length === 0) {
-      console.error("No admin found for deletion ID:", userId);
       return res.status(404).json({ success: false, error: "Admin not found" });
     }
 
     const role = results[0].role;
+
+    // 🚨 Put the block right here
     if (["Admin", "SuperAdmin"].includes(role)) {
       return res.status(403).json({ success: false, error: "Cannot delete Admin or SuperAdmin accounts." });
     }
 
+    // If not Admin/SuperAdmin, allow deletion
     db.query("DELETE FROM admins WHERE id = ?", [userId], (err, result) => {
       if (err) {
         console.error("Error deleting admin:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
       if (result.affectedRows === 0) {
-        console.error("No admin found for deletion ID:", userId);
         return res.status(404).json({ success: false, error: "Admin not found" });
       }
       console.log("Admin deleted:", { id: userId });
@@ -289,55 +353,96 @@ router.delete("/users/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
   });
 });
 
+
+// Staff management routes
 // Staff management routes
 router.get("/staff", isAuthenticatedAdmin, (req, res) => {
   db.query(
-    "SELECT id, staff_id, first_name, last_name, email, phone, position FROM staff",
+    `SELECT s.id, s.staff_id, s.first_name, s.last_name, s.email, s.phone,
+            COALESCE(GROUP_CONCAT(DISTINCT p.name SEPARATOR ', '), 'N/A') AS positions,
+            COALESCE(GROUP_CONCAT(DISTINCT c.name SEPARATOR ', '), 'N/A') AS courses
+     FROM staff s
+     LEFT JOIN staff_positions sp ON s.id = sp.staff_id
+     LEFT JOIN positions p ON sp.position_id = p.id
+     LEFT JOIN staff_courses sc ON s.id = sc.staff_id
+     LEFT JOIN courses c ON sc.course_id = c.id
+     GROUP BY s.id, s.staff_id, s.first_name, s.last_name, s.email, s.phone`,
     (err, results) => {
       if (err) {
-        console.error("Error fetching staff:", err);
+        console.error("❌ Error fetching staff:", err.sqlMessage);
         return res.status(500).json({ success: false, error: "Database error" });
       }
-      console.log("Fetched staff:", { count: results.length });
+      console.log("✅ Staff fetched:", results.length);
       res.json({ success: true, staff: results });
     }
   );
 });
 
+
 router.post("/staff", [isAuthenticatedAdmin, isAdmin], (req, res) => {
-  const { staff_id, first_name, last_name, email, phone, position } = req.body;
-  if (!staff_id || !first_name || !last_name || !email || !position) {
+  let { staff_id, first_name, last_name, email, phone, positions } = req.body;
+  positions = Array.isArray(positions) ? positions.map((id) => parseInt(id, 10)) : [];
+  if (!staff_id || !first_name || !last_name || !email) {
     console.error("Missing fields for staff creation");
     return res.status(400).json({ success: false, error: "All required fields must be provided." });
   }
-  db.query("SELECT id FROM positions WHERE name = ?", [position], (err, positionResults) => {
-    if (err) {
-      console.error("Error validating position:", err);
-      return res.status(500).json({ success: false, error: "Database error" });
-    }
-    if (positionResults.length === 0) {
-      console.error("Invalid position for staff creation:", position);
-      return res.status(400).json({ success: false, error: "Invalid position" });
-    }
+  if (positions.length > 0) {
     db.query(
-      "INSERT INTO staff (staff_id, first_name, last_name, email, phone, position) VALUES (?, ?, ?, ?, ?, ?)",
-      [staff_id, first_name, last_name, email, phone || null, position],
+      `SELECT id FROM positions WHERE id IN (${positions.map(() => "?").join(",")})`,
+      positions,
+      (err, positionResults) => {
+        if (err) {
+          console.error("Error validating positions:", err);
+          return res.status(500).json({ success: false, error: "Database error" });
+        }
+        if (positionResults.length !== positions.length) {
+          console.error("Invalid positions for staff creation:", positions);
+          return res.status(400).json({ success: false, error: "One or more invalid positions" });
+        }
+        insertStaff();
+      }
+    );
+  } else {
+    insertStaff();
+  }
+
+  function insertStaff() {
+    db.query(
+      "INSERT INTO staff (staff_id, first_name, last_name, email, phone) VALUES (?, ?, ?, ?, ?)",
+      [staff_id, first_name, last_name, email, phone || null],
       (err, result) => {
         if (err) {
           console.error("Error adding staff:", err);
           return res.status(500).json({ success: false, error: "Database error" });
         }
-        console.log("Staff added:", { id: result.insertId, staff_id });
+        const newStaffId = result.insertId;
+        if (positions.length > 0) {
+          const positionValues = positions.map((posId) => [newStaffId, posId]);
+          db.query("INSERT INTO staff_positions (staff_id, position_id) VALUES ?", [positionValues], (posErr) => {
+            if (posErr) {
+              console.error("Error adding staff positions:", posErr);
+            }
+          });
+        }
+        console.log("Staff added:", { id: newStaffId, staff_id });
         res.json({ success: true, message: "Staff added successfully." });
       }
     );
-  });
+  }
 });
 
 router.get("/staff/:id", isAuthenticatedAdmin, (req, res) => {
   const staffId = parseInt(req.params.id, 10);
   db.query(
-    "SELECT id, staff_id, first_name, last_name, email, phone, position FROM staff WHERE id = ?",
+    `SELECT s.id, s.staff_id, s.first_name, s.last_name, s.email, s.phone,
+       GROUP_CONCAT(DISTINCT p.name SEPARATOR ', ') AS positions,
+       GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS courses
+FROM staff s
+LEFT JOIN staff_positions sp ON s.id = sp.staff_id
+LEFT JOIN positions p ON sp.position_id = p.id
+LEFT JOIN staff_courses sc ON s.id = sc.staff_id
+LEFT JOIN courses c ON sc.course_id = c.id
+GROUP BY s.id;`,
     [staffId],
     (err, results) => {
       if (err) {
@@ -356,8 +461,9 @@ router.get("/staff/:id", isAuthenticatedAdmin, (req, res) => {
 
 router.put("/staff/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
   const staffId = parseInt(req.params.id, 10);
-  const { staff_id, first_name, last_name, email, phone, position } = req.body;
-  if (!staff_id || !first_name || !last_name || !email || !position) {
+  let { staff_id, first_name, last_name, email, phone, positions } = req.body;
+  positions = Array.isArray(positions) ? positions.map((id) => parseInt(id, 10)) : [];
+  if (!staff_id || !first_name || !last_name || !email) {
     console.error("Missing fields for staff update ID:", staffId);
     return res.status(400).json({ success: false, error: "All required fields must be provided." });
   }
@@ -370,18 +476,30 @@ router.put("/staff/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
       console.error("No staff found for update ID:", staffId);
       return res.status(404).json({ success: false, error: "Staff not found." });
     }
-    db.query("SELECT id FROM positions WHERE name = ?", [position], (err, positionResults) => {
-      if (err) {
-        console.error("Error validating position:", err);
-        return res.status(500).json({ success: false, error: "Database error" });
-      }
-      if (positionResults.length === 0) {
-        console.error("Invalid position for staff update:", position);
-        return res.status(400).json({ success: false, error: "Invalid position" });
-      }
+    if (positions.length > 0) {
       db.query(
-        "UPDATE staff SET staff_id = ?, first_name = ?, last_name = ?, email = ?, phone = ?, position = ? WHERE id = ?",
-        [staff_id, first_name, last_name, email, phone || null, position, staffId],
+        `SELECT id FROM positions WHERE id IN (${positions.map(() => "?").join(",")})`,
+        positions,
+        (err, positionResults) => {
+          if (err) {
+            console.error("Error validating positions:", err);
+            return res.status(500).json({ success: false, error: "Database error" });
+          }
+          if (positionResults.length !== positions.length) {
+            console.error("Invalid positions for staff update:", positions);
+            return res.status(400).json({ success: false, error: "One or more invalid positions" });
+          }
+          updateStaff();
+        }
+      );
+    } else {
+      updateStaff();
+    }
+
+    function updateStaff() {
+      db.query(
+        "UPDATE staff SET staff_id = ?, first_name = ?, last_name = ?, email = ?, phone = ? WHERE id = ?",
+        [staff_id, first_name, last_name, email, phone || null, staffId],
         (err, result) => {
           if (err) {
             console.error("Error updating staff:", err);
@@ -391,45 +509,52 @@ router.put("/staff/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
             console.error("No staff updated for ID:", staffId);
             return res.status(404).json({ success: false, error: "Staff not found." });
           }
-          console.log("Staff updated:", { id: staffId });
-          res.json({ success: true, message: "Staff updated successfully." });
+          db.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId], (delErr) => {
+            if (delErr) {
+              console.error("Error deleting old positions:", delErr);
+            }
+            if (positions.length > 0) {
+              const positionValues = positions.map((posId) => [staffId, posId]);
+              db.query("INSERT INTO staff_positions (staff_id, position_id) VALUES ?", [positionValues], (posErr) => {
+                if (posErr) {
+                  console.error("Error adding new positions:", posErr);
+                }
+              });
+            }
+            console.log("Staff updated:", { id: staffId });
+            res.json({ success: true, message: "Staff updated successfully." });
+          });
         }
       );
-    });
+    }
   });
 });
 
-router.delete("/staff/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
-  const staffId = parseInt(req.params.id, 10);
-  if (!staffId) {
-    console.error("Invalid staff ID for deletion:", req.params.id);
-    return res.status(400).json({ success: false, error: "Invalid staff ID" });
-  }
-  db.query("SELECT id FROM staff WHERE id = ?", [staffId], (err, staffResults) => {
+router.delete("/staff/:id", isAuthenticatedAdmin, (req, res) => {
+  const staffId = req.params.id;
+
+  // First delete from staff_courses
+  db.query("DELETE FROM staff_courses WHERE staff_id = ?", [staffId], (err) => {
     if (err) {
-      console.error("Error checking staff existence:", err);
+      console.error("Error deleting staff courses:", err.sqlMessage);
       return res.status(500).json({ success: false, error: "Database error" });
     }
-    if (staffResults.length === 0) {
-      console.error("No staff found for deletion ID:", staffId);
-      return res.status(404).json({ success: false, error: "Staff not found" });
-    }
-    db.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId], (err) => {
-      if (err && err.code !== 'ER_NO_SUCH_TABLE') {
-        console.error("Error deleting staff positions:", err);
+
+    // Then delete from staff_positions
+    db.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId], (err2) => {
+      if (err2) {
+        console.error("Error deleting staff positions:", err2.sqlMessage);
         return res.status(500).json({ success: false, error: "Database error" });
       }
-      db.query("DELETE FROM staff WHERE id = ?", [staffId], (err, result) => {
-        if (err) {
-          console.error("Error deleting staff:", err);
+
+      // Finally delete from staff
+      db.query("DELETE FROM staff WHERE id = ?", [staffId], (err3) => {
+        if (err3) {
+          console.error("Error deleting staff:", err3.sqlMessage);
           return res.status(500).json({ success: false, error: "Database error" });
         }
-        if (result.affectedRows === 0) {
-          console.error("No staff found for deletion ID:", staffId);
-          return res.status(404).json({ success: false, error: "Staff not found" });
-        }
-        console.log("Staff deleted:", { id: staffId });
-        res.json({ success: true, message: "Staff deleted successfully." });
+
+        res.json({ success: true, message: "Staff deleted successfully" });
       });
     });
   });
@@ -572,12 +697,12 @@ router.delete("/students/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
       return res.status(404).json({ success: false, error: "Student not found" });
     }
     db.query("DELETE FROM payments WHERE student_id = ?", [studentId], (err) => {
-      if (err && err.code !== 'ER_NO_SUCH_TABLE') {
+      if (err && err.code !== "ER_NO_SUCH_TABLE") {
         console.error("Error deleting student payments:", err);
         return res.status(500).json({ success: false, error: "Database error" });
       }
       db.query("DELETE FROM assignment_submissions WHERE student_id = ?", [studentId], (err) => {
-        if (err && err.code !== 'ER_NO_SUCH_TABLE') {
+        if (err && err.code !== "ER_NO_SUCH_TABLE") {
           console.error("Error deleting student submissions:", err);
           return res.status(500).json({ success: false, error: "Database error" });
         }
@@ -662,13 +787,13 @@ router.get("/certificate/:studentId", isAuthenticatedAdmin, (req, res) => {
         s.first_name, 
         s.last_name, 
         c.name AS course_name, 
-        AVG(asub.score / a.max_score) * 100 AS average_score
+        AVG(COALESCE(asub.score / a.max_score, 0)) * 100 AS average_score
       FROM students s
       JOIN courses c ON s.course_id = c.id
       LEFT JOIN assignment_submissions asub ON asub.student_id = s.id
       LEFT JOIN assignments a ON asub.assignment_id = a.id
       WHERE s.id = ?
-      GROUP BY s.id`,
+      GROUP BY s.id, s.first_name, s.last_name, c.name`,
     [studentId],
     (err, results) => {
       if (err) {
@@ -719,14 +844,18 @@ router.get("/certificate/:studentId", isAuthenticatedAdmin, (req, res) => {
 });
 
 // ID card generation route
-router.get("/id-card/:entityId", isAuthenticatedAdmin, (req, res) => {
+router.get("/id-card/:entityType/:entityId", isAuthenticatedAdmin, (req, res) => {
   const entityId = parseInt(req.params.entityId, 10);
-  const entityType = req.query.type;
-  const isStudent = entityType === "student";
+  const entityType = req.params.entityType;
 
+  const isStudent = entityType === "student";
   const query = isStudent
-    ? `SELECT id, admission_number, first_name, last_name, course_id FROM students WHERE id = ?`
-    : `SELECT id, staff_id, first_name, last_name, position FROM staff WHERE id = ?`;
+    ? `SELECT id, admission_number, first_name, last_name, course_id, profile_picture FROM students WHERE id = ?`
+    : `SELECT id, staff_id, first_name, last_name, GROUP_CONCAT(p.name SEPARATOR ', ') AS position FROM staff s
+       LEFT JOIN staff_positions sp ON s.id = sp.staff_id
+       LEFT JOIN positions p ON sp.position_id = p.id
+       WHERE s.id = ?
+       GROUP BY s.id`;
   db.query(query, [entityId], (err, results) => {
     if (err) {
       console.error("Error generating ID card:", err);
@@ -753,7 +882,7 @@ router.get("/id-card/:entityId", isAuthenticatedAdmin, (req, res) => {
 
     doc.fontSize(12).text(`ID: ${isStudent ? entity.admission_number : entity.staff_id}`, 10, 50);
     doc.text(`Name: ${entityFullName}`);
-    doc.text(`Role: ${isStudent ? "Student" : entity.position}`);
+    doc.text(`Role: ${isStudent ? "Student" : entity.position || "Staff"}`);
     if (isStudent) {
       db.query("SELECT name FROM courses WHERE id = ?", [entity.course_id], (courseErr, courseResult) => {
         if (courseErr) {
@@ -761,6 +890,9 @@ router.get("/id-card/:entityId", isAuthenticatedAdmin, (req, res) => {
         }
         if (courseResult.length > 0) {
           doc.text(`Course: ${courseResult[0].name}`);
+        }
+        if (entity.profile_picture) {
+          doc.image(path.join(__dirname, "Uploads", entity.profile_picture.split("/").pop()), 200, 50, { width: 80 });
         }
         const signatureImagePath = path.join(__dirname, "signature.jpg");
         if (fs.existsSync(signatureImagePath)) {
@@ -773,6 +905,9 @@ router.get("/id-card/:entityId", isAuthenticatedAdmin, (req, res) => {
         console.log("ID card generated:", { id: entityId, type: entityType });
       });
     } else {
+      if (entity.profile_picture) {
+        doc.image(path.join(__dirname, "Uploads", entity.profile_picture.split("/").pop()), 200, 50, { width: 80 });
+      }
       const signatureImagePath = path.join(__dirname, "signature.jpg");
       if (fs.existsSync(signatureImagePath)) {
         doc.image(signatureImagePath, 10, 140, { fit: [100, 50] });
