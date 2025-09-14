@@ -1,410 +1,903 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - UltraTech Global Solution LTD</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="/styles.css" rel="stylesheet">
-    <link href="/dashboard.css" rel="stylesheet">
-    <link href="/global.css" rel="stylesheet">
-    <style>
-        .admin-sidebar {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            min-height: 100vh;
-        }
-        .admin-sidebar .nav-link {
-            color: rgba(255,255,255,0.8);
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin: 2px 0;
-            transition: all 0.3s ease;
-        }
-        .admin-sidebar .nav-link:hover,
-        .admin-sidebar .nav-link.active {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            transform: translateX(5px);
-        }
-        .stats-card {
-            border-left: 4px solid;
-            transition: transform 0.2s ease;
-        }
-        .stats-card:hover {
-            transform: translateY(-2px);
-        }
-        .border-left-primary { border-left-color: #007bff !important; }
-        .border-left-success { border-left-color: #28a745 !important; }
-        .border-left-info { border-left-color: #17a2b8 !important; }
-        .border-left-warning { border-left-color: #ffc107 !important; }
-        .border-left-danger { border-left-color: #dc3545 !important; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .tab-button {
+      padding: 1rem 1.5rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      transition: color 0.3s, border-bottom-color 0.3s;
+    }
+    .tab-button.active {
+      color: #4f46e5;
+      border-bottom-color: #4f46e5;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="#">
-                <i class="fas fa-shield-alt me-2"></i>UltraTech Admin
-            </a>
-            
-            <div class="navbar-nav ms-auto">
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
-                        <img src="/placeholder.svg?height=32&width=32" class="rounded-circle me-2" width="32" height="32" alt="Profile">
-                        <span id="adminName">Loading...</span>
-                        <span class="badge bg-primary ms-2" id="adminRole">Admin</span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="showSection('profile')"><i class="fas fa-user me-2"></i>Profile</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="showSection('settings')"><i class="fas fa-cog me-2"></i>Settings</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="showSection('logs')"><i class="fas fa-list me-2"></i>Activity Logs</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+<body class="bg-gray-100 min-h-screen">
+  <div id="dashboard-container" class="w-full h-full p-4 lg:p-8">
+    <nav class="bg-white shadow-md rounded-xl p-4 flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
+      <div class="flex items-center space-x-4">
+        <button id="logout-button" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300">
+          Logout
+        </button>
+      </div>
     </nav>
 
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block admin-sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#" onclick="showSection('overview')">
-                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('students')">
-                                <i class="fas fa-user-graduate me-2"></i>Students
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('staff')">
-                                <i class="fas fa-users me-2"></i>Staff
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('courses')">
-                                <i class="fas fa-book me-2"></i>Courses
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('payments')">
-                                <i class="fas fa-credit-card me-2"></i>Payments
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('assignments')">
-                                <i class="fas fa-tasks me-2"></i>Assignments
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('exams')">
-                                <i class="fas fa-clipboard-list me-2"></i>Exams
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('reports')">
-                                <i class="fas fa-chart-bar me-2"></i>Reports
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('certificates')">
-                                <i class="fas fa-certificate me-2"></i>Certificates
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" onclick="showSection('system')">
-                                <i class="fas fa-cogs me-2"></i>System
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+    <main class="bg-white p-6 rounded-xl shadow-lg">
+      <div class="tabs">
+        <button class="tab-button active" data-tab="overview">Overview</button>
+        <button class="tab-button" data-tab="staff">Staff Management</button>
+        <button class="tab-button" data-tab="students">Student Management</button>
+        <button id="admin-management-tab" class="tab-button hidden" data-tab="admins">Admin Management</button>
+        <button class="tab-button" data-tab="generate">ID/Certificate Generator</button>
+      </div>
 
-            <!-- Main Content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <!-- Overview Section -->
-                <div id="overviewSection" class="content-section">
-                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                        <h1 class="h2">Admin Dashboard</h1>
-                        <div class="btn-toolbar mb-2 mb-md-0">
-                            <div class="btn-group me-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-download me-1"></i>Export Report
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-sync me-1"></i>Refresh
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Stats Cards -->
-                    <div class="row mb-4">
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card stats-card border-left-primary shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Students</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalStudents">0</div>
-                                        </div>
-                                        <div class="col-auto">
-                                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card stats-card border-left-success shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Staff</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="activeStaff">0</div>
-                                        </div>
-                                        <div class="col-auto">
-                                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card stats-card border-left-info shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Monthly Revenue</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="monthlyRevenue">₦0</div>
-                                        </div>
-                                        <div class="col-auto">
-                                            <i class="fas fa-naira-sign fa-2x text-gray-300"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card stats-card border-left-warning shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Approvals</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="pendingApprovals">0</div>
-                                        </div>
-                                        <div class="col-auto">
-                                            <i class="fas fa-clock fa-2x text-gray-300"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Charts and Recent Activities -->
-                    <div class="row">
-                        <div class="col-lg-8">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Revenue Overview</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="revenueChart" width="400" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-4">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-grid gap-2">
-                                        <button class="btn btn-primary" onclick="showSection('students'); showApprovalModal()">
-                                            <i class="fas fa-user-check me-2"></i>Approve Students
-                                        </button>
-                                        <button class="btn btn-success" onclick="showSection('staff'); showStaffApprovalModal()">
-                                            <i class="fas fa-user-plus me-2"></i>Approve Staff
-                                        </button>
-                                        <button class="btn btn-info" onclick="showSection('courses'); showAddCourseModal()">
-                                            <i class="fas fa-plus me-2"></i>Add Course
-                                        </button>
-                                        <button class="btn btn-warning" onclick="showSection('reports')">
-                                            <i class="fas fa-file-alt me-2"></i>Generate Report
-                                        </button>
-                                        <button class="btn btn-secondary" onclick="showSection('certificates')">
-                                            <i class="fas fa-certificate me-2"></i>Issue Certificate
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">System Status</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span>Database</span>
-                                        <span class="badge bg-success">Online</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span>Payment Gateway</span>
-                                        <span class="badge bg-success">Active</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span>Email Service</span>
-                                        <span class="badge bg-success">Running</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span>Backup Status</span>
-                                        <span class="badge bg-warning">Pending</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Students Section -->
-                <div id="studentsSection" class="content-section" style="display: none;">
-                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                        <h1 class="h2">Student Management</h1>
-                        <div class="btn-toolbar mb-2 mb-md-0">
-                            <div class="btn-group me-2">
-                                <button type="button" class="btn btn-sm btn-primary" onclick="showApprovalModal()">
-                                    <i class="fas fa-user-check me-1"></i>Approve Students
-                                </button>
-                                <button type="button" class="btn btn-sm btn-success" onclick="exportStudents()">
-                                    <i class="fas fa-download me-1"></i>Export
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered" id="studentsTable">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Course</th>
-                                            <th>Status</th>
-                                            <th>Registration Date</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="studentsTableBody">
-                                        <tr>
-                                            <td colspan="7" class="text-center py-4">
-                                                <div class="spinner-border text-primary" role="status"></div>
-                                                <p class="mt-2">Loading students...</p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Other sections would be similar... -->
-                <div id="staffSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Staff Management</h1>
-                    <p>Staff management content will be loaded here.</p>
-                </div>
-
-                <div id="coursesSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Course Management</h1>
-                    <p>Course management content will be loaded here.</p>
-                </div>
-
-                <div id="paymentsSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Payment Management</h1>
-                    <p>Payment management content will be loaded here.</p>
-                </div>
-
-                <div id="assignmentsSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Assignment Management</h1>
-                    <p>Assignment management content will be loaded here.</p>
-                </div>
-
-                <div id="examsSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Exam Management</h1>
-                    <p>Exam management content will be loaded here.</p>
-                </div>
-
-                <div id="reportsSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Reports & Analytics</h1>
-                    <p>Reports content will be loaded here.</p>
-                </div>
-
-                <div id="certificatesSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Certificate Management</h1>
-                    <p>Certificate management content will be loaded here.</p>
-                </div>
-
-                <div id="systemSection" class="content-section" style="display: none;">
-                    <h1 class="h2">System Settings</h1>
-                    <p>System settings content will be loaded here.</p>
-                </div>
-
-                <div id="profileSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Admin Profile</h1>
-                    <p>Profile management content will be loaded here.</p>
-                </div>
-
-                <div id="settingsSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Settings</h1>
-                    <p>Settings content will be loaded here.</p>
-                </div>
-
-                <div id="logsSection" class="content-section" style="display: none;">
-                    <h1 class="h2">Activity Logs</h1>
-                    <p>Activity logs content will be loaded here.</p>
-                </div>
-            </main>
+      <div id="overview-tab" class="tab-content active pt-6">
+        <h2 class="text-2xl font-bold mb-4">Dashboard Overview</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
+            <h3 class="text-lg font-medium text-gray-600">Total Staff</h3>
+            <p id="staff-count" class="text-3xl font-bold text-gray-800 mt-2">...</p>
+          </div>
+          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
+            <h3 class="text-lg font-medium text-gray-600">Total Students</h3>
+            <p id="student-count" class="text-3xl font-bold text-gray-800 mt-2">...</p>
+          </div>
+          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
+            <h3 class="text-lg font-medium text-gray-600">Total Courses</h3>
+            <p id="course-count" class="text-3xl font-bold text-gray-800 mt-2">...</p>
+          </div>
+          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
+            <h3 class="text-lg font-medium text-gray-600">Total Paid Fees</h3>
+            <p id="total-paid" class="text-3xl font-bold text-gray-800 mt-2">...</p>
+          </div>
         </div>
-    </div>
 
-    <!-- Student Approval Modal -->
-    <div class="modal fade" id="approvalModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Student Approvals</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="pendingStudents">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2">Loading pending approvals...</p>
-                        </div>
-                    </div>
-                </div>
+        <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
+          <h3 class="text-xl font-bold mb-4">Payment Records</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Type</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody id="payments-table" class="bg-white divide-y divide-gray-200">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="staff-tab" class="tab-content pt-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Staff Management</h2>
+          <button id="add-staff-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Staff</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff ID</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Courses</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staff-table" class="bg-white divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="students-tab" class="tab-content pt-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Student Management</h2>
+          <button id="add-student-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Student</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="students-table" class="bg-white divide-y divide-gray-200">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="admins-tab" class="tab-content pt-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Admin Management</h2>
+          <button id="add-admin-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Admin</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admins-table" class="bg-white divide-y divide-gray-200">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="generate-tab" class="tab-content pt-6">
+        <h2 class="text-2xl font-bold mb-4">ID/Certificate Generator</h2>
+        <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
+          <h3 class="text-xl font-bold mb-4">Generate ID Card</h3>
+          <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6">
+            <div class="flex-1">
+              <label for="id-card-entity-type" class="block text-gray-700 font-medium mb-2">Select Type</label>
+              <select id="id-card-entity-type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                <option value="student">Student</option>
+                <option value="staff">Staff</option>
+              </select>
             </div>
+            <div class="flex-1">
+              <label for="id-card-entity-id" class="block text-gray-700 font-medium mb-2">Entity ID</label>
+              <input type="text" id="id-card-entity-id" placeholder="e.g., 101" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+          </div>
+          <button id="generate-id-card-button" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300">Generate ID Card</button>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/admin-dashboard.js"></script>
+        <div class="bg-gray-100 p-6 rounded-xl shadow-inner mt-6">
+          <h3 class="text-xl font-bold mb-4">Generate Certificate</h3>
+          <div class="flex-1">
+            <label for="certificate-student-id" class="block text-gray-700 font-medium mb-2">Student ID</label>
+            <input type="text" id="certificate-student-id" placeholder="e.g., 205" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <button id="generate-certificate-button" class="mt-4 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300">Generate Certificate</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
+      <h3 id="modal-title" class="text-2xl font-bold text-gray-800 mb-4"></h3>
+      <form id="modal-form">
+      </form>
+      <div class="flex justify-end space-x-4 mt-6">
+        <button type="button" id="close-modal-button" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400 transition duration-300">
+          Cancel
+        </button>
+        <button type="submit" form="modal-form" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const dashboardContainer = document.getElementById('dashboard-container');
+      const adminManagementTab = document.getElementById('admin-management-tab');
+      const staffTable = document.getElementById('staff-table');
+      const studentsTable = document.getElementById('students-table');
+      const adminsTable = document.getElementById('admins-table');
+      const paymentsTable = document.getElementById('payments-table');
+      const staffCountEl = document.getElementById('staff-count');
+      const studentCountEl = document.getElementById('student-count');
+      const courseCountEl = document.getElementById('course-count');
+      const totalPaidEl = document.getElementById('total-paid');
+      const addStaffButton = document.getElementById('add-staff-button');
+      const addStudentButton = document.getElementById('add-student-button');
+      const addAdminButton = document.getElementById('add-admin-button');
+      const generateIdCardButton = document.getElementById('generate-id-card-button');
+      const generateCertificateButton = document.getElementById('generate-certificate-button');
+      const logoutButton = document.getElementById('logout-button');
+      const modal = document.getElementById('modal');
+      const modalTitle = document.getElementById('modal-title');
+      const modalForm = document.getElementById('modal-form');
+      const closeModalButton = document.getElementById('close-modal-button');
+
+      let currentAction = '';
+      let currentEntityType = '';
+      let currentEntityId = null;
+      const API_BASE_URL = 'http://localhost:3000';
+
+      // API Functions
+      const fetchData = async (url, options = {}) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            ...options,
+            credentials: 'include'
+          });
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const data = await response.json();
+          if (!data.success) throw new Error(data.error || 'API call failed');
+          return data;
+        } catch (error) {
+          console.error('Fetch error:', error);
+          return { success: false, error: error.message };
+        }
+      };
+
+      const postData = async (url, data) => {
+        return fetchData(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      };
+
+      const putData = async (url, data) => {
+        const headers = data instanceof FormData ? {} : { 'Content-Type': 'application/json' };
+        return fetchData(url, {
+          method: 'PUT',
+          headers,
+          body: data instanceof FormData ? data : JSON.stringify(data)
+        });
+      };
+
+      const deleteData = async (url) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+          if (!response.ok) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+              const errorData = await response.json();
+              return { success: false, error: errorData.error || `Error ${response.status}` };
+            } else {
+              return { success: false, error: "Session may have expired. Please log in again." };
+            }
+          }
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error("Delete error:", error);
+          return { success: false, error: error.message || "Request failed." };
+        }
+      };
+
+      // UI Rendering Functions
+      const formatCurrency = (amount) => {
+        return `₦${parseFloat(amount || 0).toFixed(2)}`;
+      };
+
+      const renderStaff = (staff) => {
+        staffTable.innerHTML = '';
+        staff.forEach(person => {
+          const row = document.createElement('tr');
+          row.className = 'bg-white border-b hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${person.staff_id}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${person.first_name} ${person.last_name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.email}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.positions || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.courses || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+              <button class="delete-button text-red-600 hover:text-red-900" data-id="${person.id}" data-type="staff">Delete</button>
+            </td>
+          `;
+          staffTable.appendChild(row);
+        });
+      };
+
+      const renderStudents = (students) => {
+        studentsTable.innerHTML = '';
+        students.forEach(student => {
+          const row = document.createElement('tr');
+          row.className = 'bg-white border-b hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.admission_number || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.first_name} ${student.last_name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.email}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.course_name || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+              <button class="edit-button text-indigo-600 hover:text-indigo-900" data-id="${student.id}" data-type="student">Edit</button>
+              <button class="delete-button text-red-600 hover:text-red-900" data-id="${student.id}" data-type="student">Delete</button>
+            </td>
+          `;
+          studentsTable.appendChild(row);
+        });
+      };
+
+      const renderAdmins = (admins) => {
+        adminsTable.innerHTML = '';
+        admins.forEach(admin => {
+          const row = document.createElement('tr');
+          row.className = 'bg-white border-b hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${admin.username}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${admin.role}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              ${admin.role !== 'Admin' ? `<button class="delete-button text-red-600 hover:text-red-900" data-id="${admin.id}" data-type="admin">Delete</button>` : ''}
+            </td>
+          `;
+          adminsTable.appendChild(row);
+        });
+      };
+
+      const renderPayments = (payments) => {
+        paymentsTable.innerHTML = '';
+        payments.forEach(payment => {
+          const row = document.createElement('tr');
+          row.className = 'bg-white border-b hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${payment.first_name} ${payment.last_name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${payment.payment_type}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(payment.amount)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <span class="${payment.status === 'Completed' ? 'text-green-600' : 'text-yellow-500'} font-semibold">${payment.status}</span>
+            </td>
+          `;
+          paymentsTable.appendChild(row);
+        });
+      };
+
+      const renderDashboardOverview = async () => {
+        const data = await fetchData('/api/admin/dashboard-overview');
+        if (data.success) {
+          staffCountEl.textContent = data.data.staffCount.count || 0;
+          studentCountEl.textContent = data.data.studentCount.count || 0;
+          courseCountEl.textContent = data.data.courseCount.count || 0;
+          totalPaidEl.textContent = formatCurrency(data.data.paymentSummary.total_paid);
+        } else {
+          console.error('Failed to fetch dashboard data:', data.error);
+          alert('Failed to load dashboard data. Please try again.');
+        }
+
+        const paymentsData = await fetchData('/api/admin/dashboard/payments');
+        if (paymentsData.success) {
+          renderPayments(paymentsData.payments);
+        }
+      };
+
+      const refreshData = async () => {
+        await fetchDataAndRender('/api/admin/staff', renderStaff);
+        await fetchDataAndRender('/api/admin/students', renderStudents);
+        const adminsData = await fetchData('/api/admin/users');
+        if (adminsData.success) {
+          renderAdmins(adminsData.users);
+        }
+      };
+
+      const fetchDataAndRender = async (url, renderFunc) => {
+        const data = await fetchData(url);
+        if (data.success) {
+          renderFunc(data.staff || data.students || data.users);
+        }
+      };
+
+      // Modal Functionality
+      const showModal = (title, formHtml, onSubmit, closable = true) => {
+        modalTitle.textContent = title;
+        modalForm.innerHTML = formHtml;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        closeModalButton.style.display = closable ? 'inline-block' : 'none';
+        modalForm.onsubmit = async (e) => {
+          e.preventDefault();
+          await onSubmit(e);
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          if (currentAction !== 'change-credentials') await refreshData();
+        };
+      };
+
+      closeModalButton.addEventListener('click', () => {
+        if (currentAction !== 'change-credentials') {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        }
+      });
+
+      logoutButton.addEventListener('click', async () => {
+        const result = await postData('/api/admin/logout');
+        if (result.success) {
+          window.location.href = '/admin/login';
+        } else {
+          alert('Failed to log out.');
+        }
+      });
+
+      // Tab Functionality
+      document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', async () => {
+          document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+          button.classList.add('active');
+          const tabName = button.getAttribute('data-tab');
+          document.getElementById(`${tabName}-tab`).classList.add('active');
+
+          if (tabName === 'overview') {
+            await renderDashboardOverview();
+          }
+        });
+      });
+
+      // Staff Management
+      addStaffButton.addEventListener('click', async () => {
+        const positionsData = await fetchData('/api/admin/positions');
+        const coursesData = await fetchData('/api/admin/courses');
+        const positionsHtml = positionsData.success && positionsData.positions.length > 0
+          ? positionsData.positions.map(pos => `<option value="${pos.id}">${pos.name}</option>`).join('')
+          : '<option value="" disabled>No positions available</option>';
+        const coursesHtml = coursesData.success && coursesData.courses.length > 0
+          ? coursesData.courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('')
+          : '<option value="" disabled>No courses available</option>';
+        const formHtml = `
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Staff ID</label>
+            <input type="text" name="staff_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">First Name</label>
+            <input type="text" name="first_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Last Name</label>
+            <input type="text" name="last_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Email</label>
+            <input type="email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Phone</label>
+            <input type="text" name="phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Positions</label>
+            <select name="positions[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              ${positionsHtml}
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Courses</label>
+            <select name="courses[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              ${coursesHtml}
+            </select>
+          </div>
+        `;
+        currentAction = 'add-staff';
+        showModal('Add New Staff Member', formHtml, async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.positions = formData.getAll('positions[]');
+          data.courses = formData.getAll('courses[]');
+          const result = await postData('/api/admin/staff', data);
+          if (result.success) {
+            alert('Staff member added successfully.');
+          } else {
+            alert(result.error || 'Failed to add staff.');
+          }
+        });
+      });
+
+      // Student Management
+      addStudentButton.addEventListener('click', async () => {
+        const coursesData = await fetchData('/api/admin/courses');
+        const coursesHtml = coursesData.success && coursesData.courses.length > 0
+          ? coursesData.courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('')
+          : '<option value="" disabled>No courses available</option>';
+        const formHtml = `
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Admission No</label>
+            <input type="text" name="admission_number" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">First Name</label>
+            <input type="text" name="first_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Last Name</label>
+            <input type="text" name="last_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Email</label>
+            <input type="email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Course</label>
+            <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              ${coursesHtml}
+            </select>
+          </div>
+          <div class="mb-4">
+            <label for="profile_picture" class="block text-gray-700 font-medium mb-2">Profile Picture</label>
+            <input type="file" id="profile_picture" name="profile_picture" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          </div>
+        `;
+        currentAction = 'add-student';
+        showModal('Add New Student', formHtml, async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const result = await fetchData('/api/admin/students', {
+            method: 'POST',
+            body: formData
+          });
+          if (result.success) {
+            alert('Student added successfully.');
+          } else {
+            alert(result.error || 'Failed to add student.');
+          }
+        });
+      });
+
+      // Admin Management
+      addAdminButton.addEventListener('click', async () => {
+        const formHtml = `
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Username</label>
+            <input type="text" name="username" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Password</label>
+            <input type="password" name="password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Role</label>
+            <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              <option value="Admin">Admin</option>
+              <option value="Deputy Admin">Deputy Admin</option>
+              <option value="Assistant Admin">Assistant Admin</option>
+            </select>
+          </div>
+        `;
+        currentAction = 'add-admin';
+        showModal('Add New Admin', formHtml, async (e) => {
+          e.preventDefault();
+          const formData = Object.fromEntries(new FormData(e.target).entries());
+          const result = await postData('/api/admin/users', formData);
+          if (result.success) {
+            alert('Admin created successfully.');
+          } else {
+            alert(result.error || 'Failed to create admin.');
+          }
+        });
+      });
+
+      // Delete Handlers
+      document.addEventListener('click', (e) => {
+        if (e.target.matches('.delete-button[data-type="staff"]')) {
+          const id = e.target.dataset.id;
+          if (confirm('Are you sure you want to delete this staff?')) {
+            deleteData(`/api/admin/staff/${id}`).then(result => {
+              if (result.success) {
+                alert('Staff deleted successfully.');
+                refreshData();
+              } else {
+                alert(result.error || 'Failed to delete staff.');
+                if (result.error.includes('Session may have expired')) {
+                  logoutButton.click();
+                }
+              }
+            });
+          }
+        }
+
+        if (e.target.matches('.delete-button[data-type="student"]')) {
+          const id = e.target.dataset.id;
+          if (confirm('Are you sure you want to delete this student?')) {
+            deleteData(`/api/admin/students/${id}`).then(result => {
+              if (result.success) {
+                alert('Student deleted successfully.');
+                refreshData();
+              } else {
+                alert(result.error || 'Failed to delete student.');
+                if (result.error.includes('Session may have expired')) {
+                  logoutButton.click();
+                }
+              }
+            });
+          }
+        }
+
+        if (e.target.matches('.delete-button[data-type="admin"]')) {
+          const id = e.target.dataset.id;
+          if (confirm('Are you sure you want to delete this admin?')) {
+            deleteData(`/api/admin/users/${id}`).then(result => {
+              if (result.success) {
+                alert('Admin deleted successfully.');
+                refreshData();
+              } else {
+                alert(result.error || 'Failed to delete admin.');
+                if (result.error.includes('Session may have expired')) {
+                  logoutButton.click();
+                }
+              }
+            });
+          }
+        }
+
+        // Edit Handlers
+        if (e.target.matches('.edit-button[data-type="staff"]')) {
+          const id = e.target.dataset.id;
+          currentAction = 'edit-staff';
+          currentEntityType = 'staff';
+          currentEntityId = id;
+
+          fetchData(`/api/admin/staff/${id}`).then(data => {
+            if (!data.success) {
+              alert(data.error || 'Failed to fetch data for editing staff.');
+              return;
+            }
+            const staff = data.staff;
+            Promise.all([
+              fetchData('/api/admin/positions'),
+              fetchData('/api/admin/courses')
+            ]).then(([positionsData, coursesData]) => {
+              const positionsHtml = positionsData.success
+                ? positionsData.positions.map(pos => `<option value="${pos.id}" ${staff.position_ids && staff.position_ids.split(',').map(id => id.trim()).includes(pos.id.toString()) ? 'selected' : ''}>${pos.name}</option>`).join('')
+                : '<option value="" disabled>No positions available</option>';
+              const coursesHtml = coursesData.success
+                ? coursesData.courses.map(course => `<option value="${course.id}" ${staff.course_ids && staff.course_ids.split(',').map(id => id.trim()).includes(course.id.toString()) ? 'selected' : ''}>${course.name}</option>`).join('')
+                : '<option value="" disabled>No courses available</option>';
+              const formHtml = `
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Staff ID</label>
+                  <input type="text" name="staff_id" value="${staff.staff_id || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">First Name</label>
+                  <input type="text" name="first_name" value="${staff.first_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Last Name</label>
+                  <input type="text" name="last_name" value="${staff.last_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Email</label>
+                  <input type="email" name="email" value="${staff.email || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Phone</label>
+                  <input type="text" name="phone" value="${staff.phone || ''}" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Positions</label>
+                  <select name="positions[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    ${positionsHtml}
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Courses</label>
+                  <select name="courses[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    ${coursesHtml}
+                  </select>
+                </div>
+              `;
+              showModal('Edit Staff', formHtml, async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+                data.positions = formData.getAll('positions[]');
+                data.courses = formData.getAll('courses[]');
+                const result = await putData(`/api/admin/staff/${currentEntityId}`, data);
+                if (result.success) {
+                  alert('Staff updated successfully.');
+                } else {
+                  alert(result.error || 'Failed to update staff.');
+                }
+              });
+            });
+          });
+        }
+
+        if (e.target.matches('.edit-button[data-type="student"]')) {
+          const id = e.target.dataset.id;
+          currentAction = 'edit-student';
+          currentEntityType = 'student';
+          currentEntityId = id;
+
+          fetchData(`/api/admin/students/${id}`).then(data => {
+            if (!data.success) {
+              alert(data.error || 'Failed to fetch data for editing student.');
+              return;
+            }
+            const student = data.student;
+            fetchData('/api/admin/courses').then(coursesData => {
+              const coursesHtml = coursesData.success
+                ? coursesData.courses.map(course => `<option value="${course.id}" ${student.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
+                : '<option value="" disabled>No courses available</option>';
+              const profilePicHtml = student.profile_picture ? `
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Current Picture</label>
+                  <img src="${API_BASE_URL}${student.profile_picture}" alt="Profile Picture" class="w-24 h-24 object-cover rounded-full">
+                </div>` : '';
+              const formHtml = `
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Admission No</label>
+                  <input type="text" name="admission_number" value="${student.admission_number || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">First Name</label>
+                  <input type="text" name="first_name" value="${student.first_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Last Name</label>
+                  <input type="text" name="last_name" value="${student.last_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Email</label>
+                  <input type="email" name="email" value="${student.email || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Course</label>
+                  <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    ${coursesHtml}
+                  </select>
+                </div>
+                ${profilePicHtml}
+                <div class="mb-4">
+                  <label for="profile_picture" class="block text-gray-700 font-medium mb-2">New Profile Picture</label>
+                  <input type="file" id="profile_picture" name="profile_picture" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+              `;
+              showModal('Edit Student', formHtml, async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                if (!formData.get('profile_picture') || formData.get('profile_picture').name === '') {
+                  formData.delete('profile_picture');
+                }
+                const result = await putData(`/api/admin/students/${currentEntityId}`, formData);
+                if (result.success) {
+                  alert('Student updated successfully.');
+                } else {
+                  alert(result.error || 'Failed to update student.');
+                }
+              });
+            });
+          });
+        }
+
+        if (e.target.matches('.edit-button[data-type="admin"]')) {
+          const id = e.target.dataset.id;
+          currentAction = 'edit-admin';
+          currentEntityType = 'admin';
+          currentEntityId = id;
+
+          fetchData(`/api/admin/users/${id}`).then(data => {
+            if (!data.success) {
+              alert(data.error || 'Failed to fetch data for editing admin.');
+              return;
+            }
+            const admin = data.users[0];
+            const formHtml = `
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Username</label>
+                <input type="text" name="username" value="${admin.username || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Role</label>
+                <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="Deputy Admin" ${admin.role === 'Deputy Admin' ? 'selected' : ''}>Deputy Admin</option>
+                  <option value="Assistant Admin" ${admin.role === 'Assistant Admin' ? 'selected' : ''}>Assistant Admin</option>
+                </select>
+              </div>
+            `;
+            showModal('Edit Admin', formHtml, async (e) => {
+              e.preventDefault();
+              const formData = Object.fromEntries(new FormData(e.target).entries());
+              const result = await putData(`/api/admin/users/${currentEntityId}`, formData);
+              if (result.success) {
+                alert('Admin updated successfully.');
+              } else {
+                alert(result.error || 'Failed to update admin.');
+              }
+            });
+          });
+        }
+      });
+
+      generateIdCardButton.addEventListener('click', async () => {
+        const entityType = document.getElementById('id-card-entity-type').value;
+        const entityId = document.getElementById('id-card-entity-id').value;
+        if (!entityId) {
+          alert('Please enter an ID.');
+          return;
+        }
+        const response = await fetch(`${API_BASE_URL}/api/admin/id-card/${entityType}/${entityId}`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${entityType}_ID_${entityId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          alert('ID card generated successfully.');
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to generate ID card.');
+        }
+      });
+
+      generateCertificateButton.addEventListener('click', async () => {
+        const studentId = document.getElementById('certificate-student-id').value;
+        if (!studentId) {
+          alert('Please enter a student ID.');
+          return;
+        }
+        const response = await fetch(`${API_BASE_URL}/api/admin/certificate/${studentId}`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Certificate_${studentId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          alert('Certificate generated successfully.');
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to generate certificate.');
+        }
+      });
+
+      // Initial check and data load
+      const checkAuth = async () => {
+        const authCheck = await fetchData('/api/admin/auth-check');
+        if (authCheck.success) {
+          dashboardContainer.classList.remove('hidden');
+          if (authCheck.role === 'Admin') {
+            adminManagementTab.classList.remove('hidden');
+          }
+          await renderDashboardOverview();
+          await refreshData();
+        } else {
+          window.location.href = '/admin/login';
+        }
+      };
+
+      await checkAuth();
+    });
+  </script>
 </body>
 </html>
