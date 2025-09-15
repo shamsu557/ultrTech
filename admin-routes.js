@@ -379,7 +379,7 @@ router.get("/staff", isAuthenticatedAdmin, (req, res) => {
 });
 
 
-router.post("/staff", [isAuthenticatedAdmin, isAdmin], (req, res) => {
+router.post("/staff", isAuthenticatedAdmin, (req, res) => {
   let { staff_id, first_name, last_name, email, phone, positions } = req.body;
   positions = Array.isArray(positions) ? positions.map((id) => parseInt(id, 10)) : [];
   if (!staff_id || !first_name || !last_name || !email) {
@@ -459,7 +459,7 @@ GROUP BY s.id;`,
   );
 });
 
-router.put("/staff/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
+router.put("/staff/:id", isAuthenticatedAdmin, (req, res) => {
   const staffId = parseInt(req.params.id, 10);
   let { staff_id, first_name, last_name, email, phone, positions } = req.body;
   positions = Array.isArray(positions) ? positions.map((id) => parseInt(id, 10)) : [];
@@ -533,35 +533,56 @@ router.put("/staff/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
 router.delete("/staff/:id", isAuthenticatedAdmin, (req, res) => {
   const staffId = req.params.id;
 
-  // First delete from staff_courses
-  db.query("DELETE FROM staff_courses WHERE staff_id = ?", [staffId], (err) => {
-    if (err) {
-      console.error("Error deleting staff courses:", err.sqlMessage);
-      return res.status(500).json({ success: false, error: "Database error" });
-    }
-
-    // Then delete from staff_positions
-    db.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId], (err2) => {
-      if (err2) {
-        console.error("Error deleting staff positions:", err2.sqlMessage);
+  // First delete from assignment_submissions for assignments of this staff
+  db.query(
+    `DELETE FROM assignment_submissions 
+     WHERE assignment_id IN (SELECT id FROM assignments WHERE staff_id = ?)`,
+    [staffId],
+    (err) => {
+      if (err) {
+        console.error("Error deleting assignment submissions:", err.sqlMessage);
         return res.status(500).json({ success: false, error: "Database error" });
       }
 
-      // Finally delete from staff
-      db.query("DELETE FROM staff WHERE id = ?", [staffId], (err3) => {
-        if (err3) {
-          console.error("Error deleting staff:", err3.sqlMessage);
+      // Then delete from assignments
+      db.query("DELETE FROM assignments WHERE staff_id = ?", [staffId], (err2) => {
+        if (err2) {
+          console.error("Error deleting assignments:", err2.sqlMessage);
           return res.status(500).json({ success: false, error: "Database error" });
         }
 
-        res.json({ success: true, message: "Staff deleted successfully" });
+        // Then delete from staff_courses
+        db.query("DELETE FROM staff_courses WHERE staff_id = ?", [staffId], (err3) => {
+          if (err3) {
+            console.error("Error deleting staff courses:", err3.sqlMessage);
+            return res.status(500).json({ success: false, error: "Database error" });
+          }
+
+          // Then delete from staff_positions
+          db.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId], (err4) => {
+            if (err4) {
+              console.error("Error deleting staff positions:", err4.sqlMessage);
+              return res.status(500).json({ success: false, error: "Database error" });
+            }
+
+            // Finally delete from staff
+            db.query("DELETE FROM staff WHERE id = ?", [staffId], (err5) => {
+              if (err5) {
+                console.error("Error deleting staff:", err5.sqlMessage);
+                return res.status(500).json({ success: false, error: "Database error" });
+              }
+
+              res.json({ success: true, message: "Staff deleted successfully" });
+            });
+          });
+        });
       });
-    });
-  });
+    }
+  );
 });
 
 // Student management routes
-router.post("/students", [isAuthenticatedAdmin, isAdmin], upload.single("profile_picture"), (req, res) => {
+router.post("/students", [isAuthenticatedAdmin, upload.single("profile_picture")], (req, res) => {
   const { admission_number, first_name, last_name, email, course_id, amount } = req.body;
   const profile_picture_url = req.file ? `/Uploads/${req.file.filename}` : null;
   if (!admission_number || !first_name || !last_name || !email || !course_id) {
@@ -636,7 +657,7 @@ router.get("/students/:id", isAuthenticatedAdmin, (req, res) => {
   );
 });
 
-router.put("/students/:id", [isAuthenticatedAdmin, isAdmin], upload.single("profile_picture"), (req, res) => {
+router.put("/students/:id", [isAuthenticatedAdmin, upload.single("profile_picture")], (req, res) => {
   const studentId = parseInt(req.params.id, 10);
   const { admission_number, first_name, last_name, email, course_id, amount } = req.body;
   const profile_picture_url = req.file ? `/Uploads/${req.file.filename}` : null;
@@ -681,7 +702,7 @@ router.put("/students/:id", [isAuthenticatedAdmin, isAdmin], upload.single("prof
   });
 });
 
-router.delete("/students/:id", [isAuthenticatedAdmin, isAdmin], (req, res) => {
+router.delete("/students/:id", isAuthenticatedAdmin, (req, res) => {
   const studentId = parseInt(req.params.id, 10);
   if (!studentId) {
     console.error("Invalid student ID for deletion:", req.params.id);
@@ -963,6 +984,224 @@ router.get("/positions", isAuthenticatedAdmin, (req, res) => {
 // Authentication check route
 router.get("/auth-check", isAuthenticatedAdmin, (req, res) => {
   res.json({ success: true, role: req.session.adminRole });
+});
+// Authentication check route
+router.get("/auth-check", isAuthenticatedAdmin, (req, res) => {
+  res.json({ success: true, role: req.session.adminRole });
+});
+
+// POST: Add a new resource (All admin roles)
+router.post("/resources", [isAuthenticatedAdmin, upload.single("file")], (req, res) => {
+  const { title, course_id } = req.body;
+  const file_path = req.file ? `/Uploads/${req.file.filename}` : null;
+
+  if (!title || !course_id || !file_path) {
+    console.error("Missing fields for resource creation");
+    return res.status(400).json({ success: false, error: "Title, course, and file are required." });
+  }
+
+  db.query("SELECT id FROM courses WHERE id = ?", [course_id], (err, courseResults) => {
+    if (err) {
+      console.error("Error validating course:", err);
+      return res.status(500).json({ success: false, error: "Database error" });
+    }
+    if (courseResults.length === 0) {
+      console.error("Invalid course_id for resource creation:", course_id);
+      return res.status(400).json({ success: false, error: "Invalid course ID" });
+    }
+
+    db.query(
+      "INSERT INTO resources (title, course_id, file_path) VALUES (?, ?, ?)",
+      [title, course_id, file_path],
+      (err, result) => {
+        if (err) {
+          console.error("Error adding resource:", err);
+          return res.status(500).json({ success: false, error: "Database error" });
+        }
+        console.log("Resource added:", { id: result.insertId });
+        res.json({ success: true, message: "Resource added successfully." });
+      }
+    );
+  });
+});
+
+// GET: View all resources (All admin roles)
+router.get("/resources", isAuthenticatedAdmin, (req, res) => {
+  db.query(
+    `SELECT r.id, r.title, r.file_path, c.name AS course_name
+     FROM resources r
+     JOIN courses c ON r.course_id = c.id
+     ORDER BY r.title`,
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching resources:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
+      }
+      console.log("Fetched resources:", { count: results.length });
+      res.json({ success: true, resources: results });
+    }
+  );
+});
+
+// GET: View a single resource (All admin roles)
+router.get("/resources/:id", isAuthenticatedAdmin, (req, res) => {
+  const resourceId = parseInt(req.params.id, 10);
+  db.query(
+    "SELECT id, title, course_id, file_path FROM resources WHERE id = ?",
+    [resourceId],
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching resource:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
+      }
+      if (results.length === 0) {
+        console.error("No resource found for ID:", resourceId);
+        return res.status(404).json({ success: false, error: "Resource not found" });
+      }
+      console.log("Fetched resource:", { id: resourceId });
+      res.json({ success: true, resource: results[0] });
+    }
+  );
+});
+
+// PUT: Update a resource (All admin roles)
+router.put("/resources/:id", [isAuthenticatedAdmin, upload.single("file")], (req, res) => {
+  const resourceId = parseInt(req.params.id, 10);
+  const { title, course_id } = req.body;
+  const file_path = req.file ? `/Uploads/${req.file.filename}` : null;
+
+  if (!title || !course_id) {
+    console.error("Missing fields for resource update ID:", resourceId);
+    return res.status(400).json({ success: false, error: "Title and course are required." });
+  }
+
+  db.query("SELECT id FROM courses WHERE id = ?", [course_id], (err, courseResults) => {
+    if (err) {
+      console.error("Error validating course:", err);
+      return res.status(500).json({ success: false, error: "Database error" });
+    }
+    if (courseResults.length === 0) {
+      console.error("Invalid course_id for resource update:", course_id);
+      return res.status(400).json({ success: false, error: "Invalid course ID" });
+    }
+
+    let query = "UPDATE resources SET title = ?, course_id = ?";
+    let params = [title, course_id];
+    if (file_path) {
+      query += ", file_path = ?";
+      params.push(file_path);
+    }
+    query += " WHERE id = ?";
+    params.push(resourceId);
+
+    db.query(query, params, (err, result) => {
+      if (err) {
+        console.error("Error updating resource:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
+      }
+      if (result.affectedRows === 0) {
+        console.error("No resource updated for ID:", resourceId);
+        return res.status(404).json({ success: false, error: "Resource not found." });
+      }
+      console.log("Resource updated:", { id: resourceId });
+      res.json({ success: true, message: "Resource updated successfully." });
+    });
+  });
+});
+
+// DELETE: Delete a resource (All admin roles)
+router.delete("/resources/:id", isAuthenticatedAdmin, (req, res) => {
+  const resourceId = parseInt(req.params.id, 10);
+  db.query("SELECT file_path FROM resources WHERE id = ?", [resourceId], (err, results) => {
+    if (err) {
+      console.error("Error fetching resource for deletion:", err);
+      return res.status(500).json({ success: false, error: "Database error" });
+    }
+    if (results.length === 0) {
+      console.error("No resource found for deletion ID:", resourceId);
+      return res.status(404).json({ success: false, error: "Resource not found" });
+    }
+
+    const filePath = path.join(__dirname, results[0].file_path.substring(1)); // Remove leading '/' from /Uploads/...
+    fs.unlink(filePath, (unlinkErr) => {
+      if (unlinkErr) {
+        console.error("Error deleting file from disk:", unlinkErr);
+      }
+      db.query("DELETE FROM resources WHERE id = ?", [resourceId], (err, result) => {
+        if (err) {
+          console.error("Error deleting resource:", err);
+          return res.status(500).json({ success: false, error: "Database error" });
+        }
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ success: false, error: "Resource not found" });
+        }
+        console.log("Resource deleted:", { id: resourceId });
+        res.json({ success: true, message: "Resource deleted successfully." });
+      });
+    });
+  });
+});
+
+// GET: View resources by course (All admin roles)
+router.get("/resources/course/:courseId", isAuthenticatedAdmin, (req, res) => {
+  const courseId = parseInt(req.params.courseId, 10);
+  db.query(
+    `SELECT id, title, file_path
+     FROM resources
+     WHERE course_id = ?
+     ORDER BY title`,
+    [courseId],
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching resources by course:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
+      }
+      console.log("Fetched resources for course:", { courseId, count: results.length });
+      res.json({ success: true, resources: results });
+    }
+  );
+});
+
+// GET: Download a resource (All admin roles)
+router.get("/resources/download/:id", isAuthenticatedAdmin, (req, res) => {
+  const resourceId = parseInt(req.params.id, 10);
+  db.query(
+    "SELECT file_path, title FROM resources WHERE id = ?",
+    [resourceId],
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching resource for download:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
+      }
+      if (results.length === 0) {
+        console.error("No resource found for download ID:", resourceId);
+        return res.status(404).json({ success: false, error: "Resource not found" });
+      }
+
+      const filePath = path.join(__dirname, results[0].file_path.substring(1)); // Remove leading '/' from /Uploads/...
+      const fileName = `${results[0].title}${path.extname(results[0].file_path)}`; // Use resource title as download filename
+
+      // Check if file exists on disk
+      if (!fs.existsSync(filePath)) {
+        console.error("File not found on disk:", filePath);
+        return res.status(404).json({ success: false, error: "File not found on server" });
+      }
+
+      // Set appropriate headers for download
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+      // Stream the file to the client
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.on("error", (streamErr) => {
+        console.error("Error streaming file:", streamErr);
+        res.status(500).json({ success: false, error: "Error streaming file" });
+      });
+      fileStream.pipe(res);
+
+      console.log("Resource download initiated:", { id: resourceId, fileName });
+    }
+  );
 });
 
 module.exports = router;

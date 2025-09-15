@@ -6,10 +6,13 @@ const mysql = require('mysql');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const fs = require('fs');
+const adminRoutes = require('./admin-routes'); // Import admin routes
 const db = require('./mysql');
 const axios = require('axios');
 const PDFDocument = require('pdfkit');
 const cors = require('cors');
+const mime = require('mime-types');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1648,11 +1651,11 @@ app.get("/api/student/resources", isAuthenticated, (req, res) => {
   const studentId = req.session.studentId;
 
   const query = `
-    SELECT r.id, r.title, r.description, r.file_path, r.file_type, r.uploaded_at,
-           CONCAT(st.first_name, ' ', st.last_name) as uploaded_by
+    SELECT r.id, r.title, r.file_path, r.file_type, r.uploaded_at,
+           c.name AS course_name
     FROM resources r
     LEFT JOIN students s ON s.course_id = r.course_id
-    LEFT JOIN staff st ON r.staff_id = st.id
+    LEFT JOIN courses c ON r.course_id = c.id
     WHERE s.id = ?
     ORDER BY r.uploaded_at DESC
   `;
@@ -1673,6 +1676,62 @@ app.get("/api/student/resources", isAuthenticated, (req, res) => {
   });
 });
 
+// Secure view route: open inline if browser can handle, else fallback to download
+app.get('/uploads/view/:filename', isAuthenticated, (req, res) => {
+  try {
+    const filename = path.basename(req.params.filename); // prevents path traversal
+    const filePath = path.join(__dirname, 'Uploads', filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+
+    const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+
+    // Allow inline view only for safe types
+    if (/^(application\/pdf|image\/|video\/mp4)/.test(mimeType)) {
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      return res.sendFile(filePath);
+    } else {
+      // Fallback → force download for unsupported file types
+      return res.download(filePath, filename, (err) => {
+        if (err) {
+          console.error('Download error (view fallback):', err);
+          if (!res.headersSent) res.status(500).send('Failed to download file');
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Error in view route:', err);
+    return res.status(500).send('Server error');
+  }
+});
+
+
+// Download route: forces download regardless of browser capabilities
+app.get('/uploads/download/:filename', isAuthenticated, (req, res) => {
+  try {
+    const filename = path.basename(req.params.filename); // safe
+    const filePath = path.join(__dirname, 'Uploads', filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+
+    return res.download(filePath, filename, (err) => {
+      if (err) {
+        console.error('Download error:', err);
+        if (!res.headersSent) res.status(500).send('Failed to download file');
+      }
+    });
+  } catch (err) {
+    console.error('Error in download route:', err);
+    return res.status(500).send('Server error');
+  }
+});
+
+
 // Logout endpoint
 app.post("/api/student/logout", (req, res) => {
   req.session.destroy((err) => {
@@ -1690,6 +1749,8 @@ app.post("/api/student/logout", (req, res) => {
 });
 
 // --- API ENDPOINTS ---
+
+// API to get course progress report data
 
 // API to get course progress report data
 app.get('/api/reports/course-progress', isAuthenticatedStaff, async (req, res) => {
@@ -2467,248 +2528,8 @@ app.delete('/api/assignments/:id', isAuthenticatedStaff, (req, res) => {
     });
 });
 
-// Admin login
-app.post("/api/admin/login", async (req, res) => {
-  const { username, password, role } = req.body;
-
-  try {
-    const query = `SELECT * FROM admins WHERE username = ? AND role = ? AND status = 'Active'`;
-
-    db.query(query, [username, role], async (err, results) => {
-      if (err) {
-        console.error("Error during admin login:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      if (results.length === 0) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      const admin = results[0];
-
-      const isValidPassword = await bcrypt.compare(password, admin.password_hash);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      req.session.adminId = admin.id;
-      req.session.userType = "admin";
-
-      res.json({
-        success: true,
-        admin: {
-          id: admin.id,
-          name: `${admin.first_name} ${admin.last_name}`,
-          username: admin.username,
-          role: admin.role,
-        },
-      });
-    });
-  } catch (error) {
-    console.error("Admin login error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// Admin profile
-app.get("/api/admin/profile", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const query = `SELECT id, first_name, last_name, username, email, role, status, created_at 
-                 FROM admins WHERE id = ?`;
-
-  db.query(query, [req.session.adminId], (err, results) => {
-    if (err) {
-      console.error("Error fetching admin profile:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Admin not found" });
-    }
-
-    res.json({ success: true, admin: results[0] });
-  });
-});
-
-// Admin overview
-app.get("/api/admin/overview", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const statsQuery = `
-    SELECT 
-      (SELECT COUNT(*) FROM students WHERE status IN ('Registered', 'Active')) as totalStudents,
-      (SELECT COUNT(*) FROM staff WHERE status = 'Active') as totalStaff,
-      (SELECT COUNT(*) FROM courses WHERE is_active = 1) as totalCourses,
-      (SELECT COUNT(*) FROM assignments WHERE due_date > NOW()) as activeAssignments,
-      (SELECT COUNT(*) FROM exams WHERE scheduled_date > NOW() AND is_active = 1) as upcomingExams
-  `;
-
-  db.query(statsQuery, (err, statsResults) => {
-    if (err) {
-      console.error("Error fetching admin overview stats:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    const stats = statsResults[0];
-
-    const activitiesQuery = `
-      SELECT 'student' as type, CONCAT(s.first_name, ' ', s.last_name) as title, 
-             CONCAT('New student registered: ', c.name) as description, s.created_at
-      FROM students s 
-      JOIN courses c ON s.course_id = c.id
-      WHERE s.status IN ('Registered', 'Active')
-      UNION ALL
-      SELECT 'staff' as type, CONCAT(st.first_name, ' ', st.last_name) as title, 
-             'New staff added' as description, st.created_at
-      FROM staff st
-      WHERE st.status = 'Active'
-      ORDER BY created_at DESC 
-      LIMIT 10
-    `;
-
-    db.query(activitiesQuery, (err, activitiesResults) => {
-      if (err) {
-        console.error("Error fetching admin activities:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      res.json({
-        success: true,
-        stats,
-        recentActivities: activitiesResults,
-      });
-    });
-  });
-});
-
-// Admin manage students
-app.get("/api/admin/students", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const studentsQuery = `
-    SELECT s.*, c.name as course_name 
-    FROM students s 
-    JOIN courses c ON s.course_id = c.id 
-    ORDER BY s.created_at DESC
-  `;
-
-  db.query(studentsQuery, (err, results) => {
-    if (err) {
-      console.error("Error fetching students:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    res.json({ success: true, students: results });
-  });
-});
-
-// Admin manage staff
-app.get("/api/admin/staff", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const staffQuery = `SELECT * FROM staff ORDER BY created_at DESC`;
-
-  db.query(staffQuery, (err, results) => {
-    if (err) {
-      console.error("Error fetching staff:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    res.json({ success: true, staff: results });
-  });
-});
-
-// Admin approve staff
-app.post("/api/admin/approve-staff", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const { staffId } = req.body;
-
-  const query = `UPDATE staff SET status = 'Active' WHERE id = ? AND status = 'Pending'`;
-
-  db.query(query, [staffId], (err, result) => {
-    if (err) {
-      console.error("Error approving staff:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Staff not found or already approved" });
-    }
-
-    res.json({ success: true });
-  });
-});
-
-// Admin manage courses
-app.get("/api/admin/courses", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const coursesQuery = `SELECT * FROM courses ORDER BY name`;
-
-  db.query(coursesQuery, (err, results) => {
-    if (err) {
-      console.error("Error fetching courses:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-
-    res.json({ success: true, courses: results });
-  });
-});
-
-// Admin create course
-app.post("/api/admin/create-course", (req, res) => {
-  if (!req.session.adminId) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  const { name, abbreviation, department, duration, certification_type, registration_fee, is_active } = req.body;
-
-  const query = `INSERT INTO courses (name, abbreviation, department, duration, certification_type, registration_fee, is_active) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
-
-  db.query(
-    query,
-    [name, abbreviation, department, duration, certification_type, registration_fee, is_active ? 1 : 0],
-    (err, result) => {
-      if (err) {
-        console.error("Error creating course:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      res.json({
-        success: true,
-        courseId: result.insertId,
-      });
-    }
-  );
-});
-
-// Admin logout
-app.post("/api/admin/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Error destroying admin session:", err);
-      return res.status(500).json({ error: "Logout failed" });
-    }
-    res.json({ success: true });
-  });
-});
-
-
+// Mount admin routes under /api/admin
+app.use('/api/admin', adminRoutes);
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

@@ -527,49 +527,78 @@ document.addEventListener('DOMContentLoaded', () => {
               });
           },
           resources: () => {
-            fetch('/api/student/resources', { method: 'GET', credentials: 'include' })
-              .then(response => {
-                if (response.status === 401) { window.location.href = '/student/login'; throw new Error('Unauthorized'); }
-                return response.json();
-              })
-              .then(data => {
-                contentLoading.style.display = 'none';
-                if (data.success) {
-                  contentArea.innerHTML = `
-                    <div class="card">
-                      <div class="card-header"><i class="fas fa-book me-2"></i>Resources</div>
-                      <div class="card-body">
-                        <ul id="resourceList" class="list-group resource-list"></ul>
-                      </div>
-                    </div>
-                  `;
-                  const resourceList = document.getElementById('resourceList');
-                  if (data.resources.length > 0) {
-                    data.resources.forEach(resource => {
-                      const li = document.createElement('li');
-                      li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                      li.innerHTML = `
-                        <div>
-                          <strong>${resource.title}</strong>
-                          <div class="text-muted small">${resource.description}</div>
-                          <div class="text-muted small">Uploaded by ${resource.uploaded_by} on ${new Date(resource.uploaded_at).toLocaleString()}</div>
-                        </div>
-                        <a href="${resource.file_path}" target="_blank" class="btn btn-sm btn-primary"><i class="fas fa-download me-1"></i>Download</a>
-                      `;
-                      resourceList.appendChild(li);
-                    });
-                  } else {
-                    resourceList.innerHTML = '<li class="list-group-item text-muted">No resources available.</li>';
-                  }
-                } else {
-                  contentError.textContent = data.error || 'Failed to load resources';
-                }
-              })
-              .catch(error => {
-                contentLoading.style.display = 'none';
-                contentError.textContent = 'Error loading resources';
-                console.error('Resources fetch error:', error);
-              });
+             fetch('/api/student/resources', { method: 'GET', credentials: 'include' })
+    .then(response => {
+      if (response.status === 401) { 
+        window.location.href = '/student/login'; 
+        throw new Error('Unauthorized'); 
+      }
+      return response.json();
+    })
+    .then(data => {
+      contentLoading.style.display = 'none';
+      if (data.success) {
+        contentArea.innerHTML = `
+          <div class="card">
+            <div class="card-header"><i class="fas fa-book me-2"></i>Resources</div>
+            <div class="card-body">
+              <ul id="resourceList" class="list-group resource-list"></ul>
+            </div>
+          </div>
+        `;
+        const resourceList = document.getElementById('resourceList');
+        if (data.resources.length > 0) {
+          data.resources.forEach(resource => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+            // extract filename safely
+            const rawName = resource.file_path ? resource.file_path.split('/').pop() : '';
+            const filename = encodeURIComponent(rawName);
+
+           // decide view link based on file type
+let viewLink;
+if (/\.(pdf|jpg|jpeg|png|gif|mp4)$/i.test(resource.file_path)) {
+  // let browser open inline using server route
+  viewLink = `/uploads/view/${filename}`;
+} else if (/\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(resource.file_path)) {
+  // use Google Docs viewer for Office files
+  viewLink = `https://docs.google.com/viewer?url=${encodeURIComponent(window.location.origin + resource.file_path)}&embedded=true`;
+} else {
+  // unsupported → no view, only download
+  viewLink = null;
+}
+
+li.innerHTML = `
+  <div>
+    <strong>${resource.title}</strong>
+    <div class="text-muted small">Course: ${resource.course_name || 'N/A'}</div>
+  </div>
+  <div>
+    ${viewLink ? `
+      <a href="${viewLink}" target="_blank" class="btn btn-sm btn-secondary me-2">
+        <i class="fas fa-eye me-1"></i>View
+      </a>` : ''}
+    <a href="/uploads/download/${filename}" class="btn btn-sm btn-primary">
+      <i class="fas fa-download me-1"></i>Download
+    </a>
+  </div>
+`;
+
+            resourceList.appendChild(li);
+          });
+        } else {
+          resourceList.innerHTML = '<li class="list-group-item text-muted">No resources available.</li>';
+        }
+      } else {
+        contentError.textContent = data.error || 'Failed to load resources';
+      }
+    })
+    .catch(error => {
+      contentLoading.style.display = 'none';
+      contentError.textContent = 'Error loading resources';
+      console.error('Resources fetch error:', error);
+    });
           }
         };
         
@@ -614,3 +643,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
       loadSection('overview');
     });
+     

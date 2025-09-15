@@ -52,6 +52,7 @@
         <button class="tab-button" data-tab="staff">Staff Management</button>
         <button class="tab-button" data-tab="students">Student Management</button>
         <button id="admin-management-tab" class="tab-button hidden" data-tab="admins">Admin Management</button>
+        <button class="tab-button" data-tab="resources">Resources Management</button>
         <button class="tab-button" data-tab="generate">ID/Certificate Generator</button>
       </div>
 
@@ -120,7 +121,7 @@
       <div id="students-tab" class="tab-content pt-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-2xl font-bold">Student Management</h2>
-          <button id="add-student-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Student</button>
+          <button id="add-student-button" class="bg-white "></button>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -155,6 +156,26 @@
             </thead>
             <tbody id="admins-table" class="bg-white divide-y divide-gray-200">
             </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="resources-tab" class="tab-content pt-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Resources Management</h2>
+          <button id="add-resource-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Resource</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="resources-table" class="bg-white divide-y divide-gray-200"></tbody>
           </table>
         </div>
       </div>
@@ -214,6 +235,7 @@
       const staffTable = document.getElementById('staff-table');
       const studentsTable = document.getElementById('students-table');
       const adminsTable = document.getElementById('admins-table');
+      const resourcesTable = document.getElementById('resources-table');
       const paymentsTable = document.getElementById('payments-table');
       const staffCountEl = document.getElementById('staff-count');
       const studentCountEl = document.getElementById('student-count');
@@ -222,6 +244,7 @@
       const addStaffButton = document.getElementById('add-staff-button');
       const addStudentButton = document.getElementById('add-student-button');
       const addAdminButton = document.getElementById('add-admin-button');
+      const addResourceButton = document.getElementById('add-resource-button');
       const generateIdCardButton = document.getElementById('generate-id-card-button');
       const generateCertificateButton = document.getElementById('generate-certificate-button');
       const logoutButton = document.getElementById('logout-button');
@@ -257,6 +280,13 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
+        });
+      };
+
+      const postFormData = async (url, formData) => {
+        return fetchData(url, {
+          method: 'POST',
+          body: formData
         });
       };
 
@@ -351,6 +381,27 @@
         });
       };
 
+      const renderResources = (resources) => {
+        resourcesTable.innerHTML = '';
+        resources.forEach(resource => {
+          const row = document.createElement('tr');
+          row.className = 'bg-white border-b hover:bg-gray-50';
+          row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${resource.title}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${resource.course_name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <a href="${API_BASE_URL}${resource.file_path}" class="text-indigo-600 hover:text-indigo-900" target="_blank">View</a>
+              <button class="download-button text-green-600 hover:text-green-900 ml-2" data-id="${resource.id}" data-type="resource">Download</button>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+              <button class="edit-button text-indigo-600 hover:text-indigo-900" data-id="${resource.id}" data-type="resource">Edit</button>
+              <button class="delete-button text-red-600 hover:text-red-900" data-id="${resource.id}" data-type="resource">Delete</button>
+            </td>
+          `;
+          resourcesTable.appendChild(row);
+        });
+      };
+
       const renderPayments = (payments) => {
         paymentsTable.innerHTML = '';
         payments.forEach(payment => {
@@ -389,6 +440,7 @@
       const refreshData = async () => {
         await fetchDataAndRender('/api/admin/staff', renderStaff);
         await fetchDataAndRender('/api/admin/students', renderStudents);
+        await fetchDataAndRender('/api/admin/resources', renderResources);
         const adminsData = await fetchData('/api/admin/users');
         if (adminsData.success) {
           renderAdmins(adminsData.users);
@@ -398,7 +450,7 @@
       const fetchDataAndRender = async (url, renderFunc) => {
         const data = await fetchData(url);
         if (data.success) {
-          renderFunc(data.staff || data.students || data.users);
+          renderFunc(data.staff || data.students || data.resources || data.users);
         }
       };
 
@@ -446,6 +498,8 @@
 
           if (tabName === 'overview') {
             await renderDashboardOverview();
+          } else if (tabName === 'resources') {
+            await fetchDataAndRender('/api/admin/resources', renderResources);
           }
         });
       });
@@ -548,10 +602,7 @@
         showModal('Add New Student', formHtml, async (e) => {
           e.preventDefault();
           const formData = new FormData(e.target);
-          const result = await fetchData('/api/admin/students', {
-            method: 'POST',
-            body: formData
-          });
+          const result = await postFormData('/api/admin/students', formData);
           if (result.success) {
             alert('Student added successfully.');
           } else {
@@ -593,7 +644,42 @@
         });
       });
 
-      // Delete Handlers
+      // Resource Management
+      addResourceButton.addEventListener('click', async () => {
+        const coursesData = await fetchData('/api/admin/courses');
+        const coursesHtml = coursesData.success && coursesData.courses.length > 0
+          ? coursesData.courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('')
+          : '<option value="" disabled>No courses available</option>';
+        const formHtml = `
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Title</label>
+            <input type="text" name="title" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Course</label>
+            <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+              ${coursesHtml}
+            </select>
+          </div>
+          <div class="mb-4">
+            <label for="file" class="block text-gray-700 font-medium mb-2">File</label>
+            <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.jpg,.jpeg,.png" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          </div>
+        `;
+        currentAction = 'add-resource';
+        showModal('Add New Resource', formHtml, async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const result = await postFormData('/api/admin/resources', formData);
+          if (result.success) {
+            alert('Resource added successfully.');
+          } else {
+            alert(result.error || 'Failed to add resource.');
+          }
+        });
+      });
+
+      // Delete and Edit Handlers
       document.addEventListener('click', (e) => {
         if (e.target.matches('.delete-button[data-type="staff"]')) {
           const id = e.target.dataset.id;
@@ -646,77 +732,52 @@
           }
         }
 
-        // Edit Handlers
-        if (e.target.matches('.edit-button[data-type="staff"]')) {
+        if (e.target.matches('.delete-button[data-type="resource"]')) {
           const id = e.target.dataset.id;
-          currentAction = 'edit-staff';
-          currentEntityType = 'staff';
-          currentEntityId = id;
-
-          fetchData(`/api/admin/staff/${id}`).then(data => {
-            if (!data.success) {
-              alert(data.error || 'Failed to fetch data for editing staff.');
-              return;
-            }
-            const staff = data.staff;
-            Promise.all([
-              fetchData('/api/admin/positions'),
-              fetchData('/api/admin/courses')
-            ]).then(([positionsData, coursesData]) => {
-              const positionsHtml = positionsData.success
-                ? positionsData.positions.map(pos => `<option value="${pos.id}" ${staff.position_ids && staff.position_ids.split(',').map(id => id.trim()).includes(pos.id.toString()) ? 'selected' : ''}>${pos.name}</option>`).join('')
-                : '<option value="" disabled>No positions available</option>';
-              const coursesHtml = coursesData.success
-                ? coursesData.courses.map(course => `<option value="${course.id}" ${staff.course_ids && staff.course_ids.split(',').map(id => id.trim()).includes(course.id.toString()) ? 'selected' : ''}>${course.name}</option>`).join('')
-                : '<option value="" disabled>No courses available</option>';
-              const formHtml = `
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Staff ID</label>
-                  <input type="text" name="staff_id" value="${staff.staff_id || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">First Name</label>
-                  <input type="text" name="first_name" value="${staff.first_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Last Name</label>
-                  <input type="text" name="last_name" value="${staff.last_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Email</label>
-                  <input type="email" name="email" value="${staff.email || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Phone</label>
-                  <input type="text" name="phone" value="${staff.phone || ''}" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Positions</label>
-                  <select name="positions[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                    ${positionsHtml}
-                  </select>
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Courses</label>
-                  <select name="courses[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                    ${coursesHtml}
-                  </select>
-                </div>
-              `;
-              showModal('Edit Staff', formHtml, async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData);
-                data.positions = formData.getAll('positions[]');
-                data.courses = formData.getAll('courses[]');
-                const result = await putData(`/api/admin/staff/${currentEntityId}`, data);
-                if (result.success) {
-                  alert('Staff updated successfully.');
-                } else {
-                  alert(result.error || 'Failed to update staff.');
+          if (confirm('Are you sure you want to delete this resource?')) {
+            deleteData(`/api/admin/resources/${id}`).then(result => {
+              if (result.success) {
+                alert('Resource deleted successfully.');
+                refreshData();
+              } else {
+                alert(result.error || 'Failed to delete resource.');
+                if (result.error.includes('Session may have expired')) {
+                  logoutButton.click();
                 }
-              });
+              }
             });
+          }
+        }
+
+        if (e.target.matches('.download-button[data-type="resource"]')) {
+          const id = e.target.dataset.id;
+          fetch(`${API_BASE_URL}/api/admin/resources/download/${id}`, {
+            method: 'GET',
+            credentials: 'include'
+          }).then(response => {
+            if (response.ok) {
+              return response.blob().then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `resource_${id}${response.headers.get('content-type').includes('pdf') ? '.pdf' : ''}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                alert('Resource downloaded successfully.');
+              });
+            } else {
+              return response.json().then(data => {
+                throw new Error(data.error || 'Failed to download resource.');
+              });
+            }
+          }).catch(error => {
+            console.error('Download error:', error);
+            alert(error.message || 'Failed to download resource.');
+            if (error.message.includes('Session may have expired')) {
+              logoutButton.click();
+            }
           });
         }
 
@@ -821,6 +882,59 @@
               } else {
                 alert(result.error || 'Failed to update admin.');
               }
+            });
+          });
+        }
+
+        if (e.target.matches('.edit-button[data-type="resource"]')) {
+          const id = e.target.dataset.id;
+          currentAction = 'edit-resource';
+          currentEntityType = 'resource';
+          currentEntityId = id;
+
+          fetchData(`/api/admin/resources/${id}`).then(data => {
+            if (!data.success) {
+              alert(data.error || 'Failed to fetch data for editing resource.');
+              return;
+            }
+            const resource = data.resource;
+            fetchData('/api/admin/courses').then(coursesData => {
+              const coursesHtml = coursesData.success
+                ? coursesData.courses.map(course => `<option value="${course.id}" ${resource.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
+                : '<option value="" disabled>No courses available</option>';
+              const formHtml = `
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Title</label>
+                  <input type="text" name="title" value="${resource.title || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Course</label>
+                  <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    ${coursesHtml}
+                  </select>
+                </div>
+                <div class="mb-4">
+                  <label class="block text-gray-700 font-medium mb-2">Current File</label>
+                  <a href="${API_BASE_URL}${resource.file_path}" target="_blank" class="text-indigo-600 hover:text-indigo-900">${resource.file_path.split('/').pop()}</a>
+                </div>
+                <div class="mb-4">
+                  <label for="file" class="block text-gray-700 font-medium mb-2">New File (optional)</label>
+                  <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.jpg,.jpeg,.png" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+              `;
+              showModal('Edit Resource', formHtml, async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                if (!formData.get('file') || formData.get('file').name === '') {
+                  formData.delete('file');
+                }
+                const result = await putData(`/api/admin/resources/${currentEntityId}`, formData);
+                if (result.success) {
+                  alert('Resource updated successfully.');
+                } else {
+                  alert(result.error || 'Failed to update resource.');
+                }
+              });
             });
           });
         }
