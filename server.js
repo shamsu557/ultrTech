@@ -2202,16 +2202,24 @@ app.get('/api/staff/me', isAuthenticatedStaff, (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ error: 'Staff profile not found.' });
         }
+
         const staffProfile = results[0];
-        staffProfile.profilePic = staffProfile.profile_picture
-            ? `/${staffProfile.profile_picture.replace(/\\/g, '/')}`
-            : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
+
+        // ✅ Fix profile picture path
+        if (staffProfile.profile_picture) {
+            const fileName = path.basename(staffProfile.profile_picture); // strip directories
+            staffProfile.profilePic = `/uploads/${fileName}`;
+        } else {
+            staffProfile.profilePic = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
+        }
+
+        // ✅ Split courses and positions into arrays
         staffProfile.courses = staffProfile.courses ? staffProfile.courses.split(',') : [];
         staffProfile.positions = staffProfile.positions ? staffProfile.positions.split(',') : [];
+
         res.json(staffProfile);
     });
 });
-
 // API to get dashboard statistics
 app.get('/api/dashboard/stats', isAuthenticatedStaff, async (req, res) => {
     const staffId = req.session.staffDatabaseId;
