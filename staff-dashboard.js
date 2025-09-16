@@ -7,6 +7,41 @@ let courseProgressChart = null;
  * Shows the selected content section and hides others.
  * @param {string} sectionId The ID of the section to show (e.g., 'overview').
  */
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            const hamburger = document.getElementById('hamburger');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+            hamburger.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('sidebar-active');
+                    mainContent.classList.toggle('main-content-full');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+                    sidebar.classList.remove('sidebar-active');
+                    mainContent.classList.add('main-content-full');
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('sidebar-active');
+                    mainContent.classList.remove('main-content-full');
+                } else {
+                    sidebar.classList.remove('sidebar-active');
+                    mainContent.classList.add('main-content-full');
+                }
+            });
+
+            const profilePicture = document.getElementById('profilePicture');
+            profilePicture.onerror = () => {
+                profilePicture.src = '/Uploads/default-profile.jpg';
+            };
+        });
 function showSection(sectionId) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.style.display = 'none';
@@ -40,6 +75,68 @@ function showSection(sectionId) {
     }
 }
 
+function loadStaffResources() {
+  fetch('/api/staff/resources', { credentials: 'include' })
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.getElementById("staffResourceTable");
+      tbody.innerHTML = "";
+      if (data.success && data.resources.length > 0) {
+        data.resources.forEach(r => {
+          const filename = encodeURIComponent(r.file_path.split('/').pop());
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${r.title}</td>
+            <td>${r.course}</td>
+            <td>
+              <a href="/api/staff/resources/view/${filename}" target="_blank" class="btn btn-sm btn-secondary me-2" onclick="handleViewResource(event, '${filename}')">
+                <i class="fas fa-eye"></i> View
+              </a>
+              <a href="/api/staff/resources/download/${r.id}" class="btn btn-sm btn-primary">
+                <i class="fas fa-download"></i> Download
+              </a>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } else {
+        tbody.innerHTML = `<tr><td colspan="3" class="text-muted">No resources available</td></tr>`;
+      }
+    })
+    .catch(err => {
+      console.error("Error loading staff resources:", err);
+      document.getElementById("staffResourceTable").innerHTML =
+        `<tr><td colspan="3" class="text-danger">Error loading resources</td></tr>`;
+    });
+}
+
+function handleViewResource(event, filename) {
+  event.preventDefault();
+  fetch(`/api/staff/resources/view/${filename}`, { credentials: 'include' })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! Status: ${res.status}`);
+      }
+      return res.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      console.error("Error viewing resource:", err);
+      alert("Failed to view resource. Please try again or contact support.");
+    });
+}
+
+// Hook into sidebar navigation
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelector('[data-section="resources"]').addEventListener("click", () => {
+    showSection('resources');
+    loadStaffResources();
+  });
+});
 /**
  * Fetches and renders the course progress report chart.
  */
