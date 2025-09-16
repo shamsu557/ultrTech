@@ -25,9 +25,15 @@ router.use(
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
-    cookie: { secure: process.env.NODE_ENV === "production", maxAge: 24 * 60 * 60 * 1000 }, // 24 hours
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // only true if HTTPS
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
   })
 );
+
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
