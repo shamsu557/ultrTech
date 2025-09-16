@@ -7,6 +7,7 @@ const path = require("path");
 const session = require("express-session");
 const db = require("./mysql");
 const multer = require("multer");
+const cors = require("cors");
 const MySQLStore = require("express-mysql-session")(session);
 
 // Enable trust proxy for Render's load balancer
@@ -39,15 +40,31 @@ router.use(
     },
   })
 );
-
+// ✅ Define allowed origins before using them
+const allowedOrigins = [
+  "http://localhost:3000",        // Local dev
+  "http://127.0.0.1:3000",        // Sometimes dev uses 127.0.0.1
+  process.env.FRONTEND_URL,       // Custom domain if set
+  process.env.RENDER_EXTERNAL_URL, // Render hosting
+  process.env.VERCEL_URL,         // Vercel hosting
+  process.env.NETLIFY_URL         // Netlify hosting
+].filter(Boolean); // remove any undefined
 // Add CORS middleware for production
-const cors = require("cors");
 router.use(
   cors({
-    origin: process.env.NODE_ENV === "production" ? process.env.FRONTEND_URL || "https://your-render-domain.onrender.com" : "http://localhost:3000",
-    credentials: true, // Allow cookies to be sent
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // Allow cookies/sessions
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 

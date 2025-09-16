@@ -30,7 +30,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentAction = '';
   let currentEntityType = '';
   let currentEntityId = null;
-  const API_BASE_URL = 'http://localhost:3000';
+
+  // Dynamic API base URL
+ // Auto-detect backend base URL
+const API_BASE_URL =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000" // Local backend
+    : `${window.location.origin}`; // Same domain as frontend (Render, Vercel, Netlify, custom)
+
   const bootstrapModal = new bootstrap.Modal(modal, { backdrop: 'static', keyboard: false });
 
   // Sidebar Toggle Functionality
@@ -38,7 +45,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     sidebar.classList.toggle('sidebar-active');
     sidebarBackdrop.classList.toggle('d-block');
   });
-
   sidebarBackdrop.addEventListener('click', () => {
     sidebar.classList.remove('sidebar-active');
     sidebarBackdrop.classList.remove('d-block');
