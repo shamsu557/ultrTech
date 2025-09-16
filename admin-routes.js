@@ -9,6 +9,12 @@ const db = require("./mysql");
 const multer = require("multer");
 const MySQLStore = require("express-mysql-session")(session);
 
+// Enable trust proxy for Render's load balancer
+router.use((req, res, next) => {
+  req.app.set('trust proxy', 1); // Trust the first proxy (Render's load balancer)
+  next();
+});
+
 // Session store configuration
 const sessionStore = new MySQLStore({
   host: process.env.DB_HOST || "mysql-shamsu557.alwaysdata.net",
@@ -27,14 +33,36 @@ router.use(
     store: sessionStore,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" ? true : false,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000
+      secure: process.env.NODE_ENV === "production", // true in production for HTTPS
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax", // Use 'lax' for production
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
   })
 );
 
+// Add CORS middleware for production
+const cors = require("cors");
+router.use(
+  cors({
+    origin: process.env.NODE_ENV === "production" ? process.env.FRONTEND_URL || "https://your-render-domain.onrender.com" : "http://localhost:3000",
+    credentials: true, // Allow cookies to be sent
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 
+// Log session details for debugging
+router.use((req, res, next) => {
+  console.log("Session details:", {
+    sessionID: req.sessionID,
+    adminId: req.session.adminId,
+    adminRole: req.session.adminRole,
+    isSecure: req.secure,
+    origin: req.get('origin'),
+    host: req.get('host')
+  });
+  next();
+});
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
