@@ -2536,6 +2536,124 @@ app.delete('/api/assignments/:id', isAuthenticatedStaff, (req, res) => {
     });
 });
 
+// Staff: Get all resources (view & download for all courses)
+ app.get("/api/staff/resources", isAuthenticatedStaff, (req, res) => {
+  const query = `
+    SELECT r.id, r.title, r.file_path, c.name AS course_name
+    FROM resources r
+    JOIN courses c ON r.course_id = c.id
+    ORDER BY r.title
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching staff resources:", err);
+      return res.status(500).json({ success: false, error: "Database error" });
+    }
+    console.log("Fetched staff resources:", { count: results.length });
+
+    res.json({
+      success: true,
+      resources: results.map(r => ({
+        id: r.id,
+        title: r.title,
+        course: r.course_name,
+        file_path: normalizeProfilePath(r.file_path)
+      }))
+    });
+  });
+});
+
+// Staff: View resource (all courses)
+app.get('/api/staff/resources/view/:filename', isAuthenticatedStaff, (req, res) => {
+  try {
+    const filename = path.basename(req.params.filename); // Prevent path traversal
+    const filePath = path.join(__dirname, 'Uploads', filename);
+
+    if (!fs.existsSync(filePath)) {
+      console.error('File not found:', { filePath });
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+
+    // Validate resource in database
+    const query = `
+      SELECT r.id, r.title, r.file_path, c.name AS course_name
+      FROM resources r
+      JOIN courses c ON r.course_id = c.id
+      WHERE r.file_path LIKE ?
+    `;
+    const filePathLike = `%${filename}`;
+
+    db.query(query, [filePathLike], (err, results) => {
+      if (err) {
+        console.error('Error fetching resource:', err);
+        return res.status(500).json({ success: false, error: 'Database error' });
+      }
+      if (results.length === 0) {
+        console.error('Resource not found in database:', { filename });
+        return res.status(404).json({ success: false, error: 'Resource not found in database' });
+      }
+
+      const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+
+      // Allow inline view for safe file types
+      if (/^(application\/pdf|image\/|video\/mp4)/.test(mimeType)) {
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        res.sendFile(filePath);
+      } else {
+        // Fallback to download for unsupported file types
+        res.download(filePath, filename, (err) => {
+          if (err) {
+            console.error('Download error (view fallback):', err);
+            if (!res.headersSent) res.status(500).json({ success: false, error: 'Failed to download file' });
+          }
+        });
+      }
+    });
+  } catch (err) {
+    console.error('Error in staff view route:', err);
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// Staff: Download resource (all courses)
+app.get("/api/staff/resources/download/:id", isAuthenticatedStaff, (req, res) => {
+  const resourceId = parseInt(req.params.id, 10);
+
+  db.query(
+    `SELECT r.title, r.file_path, c.name AS course_name
+     FROM resources r
+     JOIN courses c ON r.course_id = c.id
+     WHERE r.id = ?`,
+    [resourceId],
+    (err, results) => {
+      if (err) {
+        console.error("Error fetching staff resource for download:", err);
+        return res.status(500).json({ success: false, error: "Database error" });
+      }
+      if (results.length === 0) {
+        console.error('Resource not found:', { resourceId });
+        return res.status(404).json({ success: false, error: "Resource not found" });
+      }
+
+      const resource = results[0];
+      const filePath = path.join(__dirname, resource.file_path.substring(1));
+      const fileName = `${resource.title}${path.extname(resource.file_path)}`;
+
+      if (!fs.existsSync(filePath)) {
+        console.error('File not found on server:', { filePath });
+        return res.status(404).json({ success: false, error: "File not found on server" });
+      }
+
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+      const stream = fs.createReadStream(filePath);
+      stream.pipe(res);
+    }
+  );
+});
 // Mount admin routes under /api/admin
 app.use('/api/admin', adminRoutes);
 // Start the server
