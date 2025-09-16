@@ -1,1017 +1,355 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f3f4f6;
-    }
-    .tabs {
-      display: flex;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    .tab-button {
-      padding: 1rem 1.5rem;
-      font-weight: 500;
-      cursor: pointer;
-      color: #6b7280;
-      border-bottom: 2px solid transparent;
-      transition: color 0.3s, border-bottom-color 0.3s;
-    }
-    .tab-button.active {
-      color: #4f46e5;
-      border-bottom-color: #4f46e5;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - UltraTech Global Solution LTD</title>
+   
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <link rel="stylesheet" href="/globals.css">
+    <link rel="stylesheet" href="/admin-dashboard.css">
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <div id="dashboard-container" class="w-full h-full p-4 lg:p-8">
-    <nav class="bg-white shadow-md rounded-xl p-4 flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-      <div class="flex items-center space-x-4">
-        <button id="logout-button" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300">
-          Logout
-        </button>
-      </div>
-    </nav>
-
-    <main class="bg-white p-6 rounded-xl shadow-lg">
-      <div class="tabs">
-        <button class="tab-button active" data-tab="overview">Overview</button>
-        <button class="tab-button" data-tab="staff">Staff Management</button>
-        <button class="tab-button" data-tab="students">Student Management</button>
-        <button id="admin-management-tab" class="tab-button hidden" data-tab="admins">Admin Management</button>
-        <button class="tab-button" data-tab="resources">Resources Management</button>
-        <button class="tab-button" data-tab="generate">ID/Certificate Generator</button>
-      </div>
-
-      <div id="overview-tab" class="tab-content active pt-6">
-        <h2 class="text-2xl font-bold mb-4">Dashboard Overview</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
-            <h3 class="text-lg font-medium text-gray-600">Total Staff</h3>
-            <p id="staff-count" class="text-3xl font-bold text-gray-800 mt-2">...</p>
-          </div>
-          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
-            <h3 class="text-lg font-medium text-gray-600">Total Students</h3>
-            <p id="student-count" class="text-3xl font-bold text-gray-800 mt-2">...</p>
-          </div>
-          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
-            <h3 class="text-lg font-medium text-gray-600">Total Courses</h3>
-            <p id="course-count" class="text-3xl font-bold text-gray-800 mt-2">...</p>
-          </div>
-          <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
-            <h3 class="text-lg font-medium text-gray-600">Total Paid Fees</h3>
-            <p id="total-paid" class="text-3xl font-bold text-gray-800 mt-2">...</p>
-          </div>
-        </div>
-
-        <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
-          <h3 class="text-xl font-bold mb-4">Payment Records</h3>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Type</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody id="payments-table" class="bg-white divide-y divide-gray-200">
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div id="staff-tab" class="tab-content pt-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Staff Management</h2>
-          <button id="add-staff-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Staff</button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Courses</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="staff-table" class="bg-white divide-y divide-gray-200"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="students-tab" class="tab-content pt-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Student Management</h2>
-          <button id="add-student-button" class="bg-white "></button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="students-table" class="bg-white divide-y divide-gray-200">
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="admins-tab" class="tab-content pt-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Admin Management</h2>
-          <button id="add-admin-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Admin</button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admins-table" class="bg-white divide-y divide-gray-200">
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="resources-tab" class="tab-content pt-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Resources Management</h2>
-          <button id="add-resource-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Add Resource</button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="resources-table" class="bg-white divide-y divide-gray-200"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="generate-tab" class="tab-content pt-6">
-        <h2 class="text-2xl font-bold mb-4">ID/Certificate Generator</h2>
-        <div class="bg-gray-100 p-6 rounded-xl shadow-inner">
-          <h3 class="text-xl font-bold mb-4">Generate ID Card</h3>
-          <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6">
-            <div class="flex-1">
-              <label for="id-card-entity-type" class="block text-gray-700 font-medium mb-2">Select Type</label>
-              <select id="id-card-entity-type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-                <option value="student">Student</option>
-                <option value="staff">Staff</option>
-              </select>
+<body>
+    <div class="dashboard-container" id="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header text-center mb-4">
+                <h4 class="mb-0 text-gray-800">Admin Dashboard</h4>
+                <small class="text-muted">UltraTech Admin Portal</small>
             </div>
-            <div class="flex-1">
-              <label for="id-card-entity-id" class="block text-gray-700 font-medium mb-2">Entity ID</label>
-              <input type="text" id="id-card-entity-id" placeholder="e.g., 101" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            <ul class="nav flex-column flex-grow-1">
+                <li class="nav-item mb-2">
+                    <button class="nav-link tab-button active" data-tab="overview"><i class="fas fa-tachometer-alt me-2"></i>Overview</button>
+                </li>
+                <li class="nav-item mb-2">
+                    <button class="nav-link tab-button" data-tab="staff"><i class="fas fa-users me-2"></i>Staff Management</button>
+                </li>
+                <li class="nav-item mb-2">
+                    <button class="nav-link tab-button" data-tab="students"><i class="fas fa-graduation-cap me-2"></i>Student Management</button>
+                </li>
+                <li class="nav-item mb-2 hidden" id="admin-management-tab">
+                    <button class="nav-link tab-button" data-tab="admins"><i class="fas fa-user-shield me-2"></i>Admin Management</button>
+                </li>
+                <li class="nav-item mb-2">
+                    <button class="nav-link tab-button" data-tab="resources"><i class="fas fa-book me-2"></i>Resources Management</button>
+                </li>
+                <li class="nav-item mb-2">
+                    <button class="nav-link tab-button" data-tab="generate"><i class="fas fa-id-card me-2"></i>ID/Certificate Generator</button>
+                </li>
+            </ul>
+            <div class="mt-auto">
+                <button  class="nav-link text-white bg-danger rounded w-100" href="#" id="logout-button">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </button>
             </div>
-          </div>
-          <button id="generate-id-card-button" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300">Generate ID Card</button>
+        </div>
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- Main Content -->
+        <div class="main-content" id="main-content">
+            <div class="hamburger" id="hamburger"><i class="fas fa-bars"></i></div>
+            <h2 class="section-title text-2xl font-bold text-gray-800 mb-4" id="pageTitle">Overview</h2>
+
+            <!-- Overview Section -->
+            <div id="overview-tab" class="tab-content active">
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-gray-600 text-uppercase mb-1">Total Staff</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="staff-count">...</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-gray-600 text-uppercase mb-1">Total Students</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="student-count">...</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-gray-600 text-uppercase mb-1">Total Courses</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="course-count">...</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-book fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-gray-600 text-uppercase mb-1">Total Paid Fees</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-paid">...</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-gray-800">Payment Records</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="payments-table">
+                                <thead>
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <th>Payment Type</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                            <p class="mt-2">Loading payments...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff Management Section -->
+            <div id="staff-tab" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Staff Management</h2>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-staff-button">
+                        <i class="fas fa-plus me-1"></i>Add Staff
+                    </button>
+                </div>
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="staff-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff ID</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Position</th>
+                                        <th>Courses</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                            <p class="mt-2">Loading staff...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Management Section -->
+            <div id="students-tab" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Student Management</h2>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-student-button">
+                        <i class="fas fa-plus me-1"></i>Add Student
+                    </button>
+                </div>
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="students-table">
+                                <thead>
+                                    <tr>
+                                        <th>Admission No</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Course</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                            <p class="mt-2">Loading students...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Management Section -->
+            <div id="admins-tab" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Admin Management</h2>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-admin-button">
+                        <i class="fas fa-plus me-1"></i>Add Admin
+                    </button>
+                </div>
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="admins-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                            <p class="mt-2">Loading admins...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources Management Section -->
+            <div id="resources-tab" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Resources Management</h2>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-resource-button">
+                        <i class="fas fa-plus me-1"></i>Add Resource
+                    </button>
+                </div>
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="resources-table">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Course</th>
+                                        <th>File</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                            <p class="mt-2">Loading resources...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ID/Certificate Generator Section -->
+            <div id="generate-tab" class="tab-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">ID/Certificate Generator</h2>
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-gray-800">Generate ID Card</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="id-card-entity-type" class="form-label">Select Type</label>
+                                        <select id="id-card-entity-type" class="form-select">
+                                            <option value="student">Student</option>
+                                            <option value="staff">Staff</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="id-card-entity-id" class="form-label">Entity ID</label>
+                                        <input type="text" id="id-card-entity-id" placeholder="e.g., 101" class="form-control">
+                                    </div>
+                                </div>
+                                <button id="generate-id-card-button" class="btn btn-success">Generate ID Card</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-gray-800">Generate Certificate</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="certificate-student-id" class="form-label">Student ID</label>
+                                    <input type="text" id="certificate-student-id" placeholder="e.g., 205" class="form-control">
+                                </div>
+                                <button id="generate-certificate-button" class="btn btn-success">Generate Certificate</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="bg-gray-100 p-6 rounded-xl shadow-inner mt-6">
-          <h3 class="text-xl font-bold mb-4">Generate Certificate</h3>
-          <div class="flex-1">
-            <label for="certificate-student-id" class="block text-gray-700 font-medium mb-2">Student ID</label>
-            <input type="text" id="certificate-student-id" placeholder="e.g., 205" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <button id="generate-certificate-button" class="mt-4 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300">Generate Certificate</button>
+        <!-- Modal for Add/Edit -->
+        <div id="modal" class="modal fade" tabindex="-1" aria-labelledby="modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modal-title">Modal Title</h5>
+                        <button type="button" class="btn-close" id="close-modal-button" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="modal-form"></form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="close-modal-button-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" form="modal-form">Save</button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </main>
-  </div>
-
-  <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
-      <h3 id="modal-title" class="text-2xl font-bold text-gray-800 mb-4"></h3>
-      <form id="modal-form">
-      </form>
-      <div class="flex justify-end space-x-4 mt-6">
-        <button type="button" id="close-modal-button" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400 transition duration-300">
-          Cancel
-        </button>
-        <button type="submit" form="modal-form" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">
-          Save
-        </button>
-      </div>
     </div>
-  </div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      const dashboardContainer = document.getElementById('dashboard-container');
-      const adminManagementTab = document.getElementById('admin-management-tab');
-      const staffTable = document.getElementById('staff-table');
-      const studentsTable = document.getElementById('students-table');
-      const adminsTable = document.getElementById('admins-table');
-      const resourcesTable = document.getElementById('resources-table');
-      const paymentsTable = document.getElementById('payments-table');
-      const staffCountEl = document.getElementById('staff-count');
-      const studentCountEl = document.getElementById('student-count');
-      const courseCountEl = document.getElementById('course-count');
-      const totalPaidEl = document.getElementById('total-paid');
-      const addStaffButton = document.getElementById('add-staff-button');
-      const addStudentButton = document.getElementById('add-student-button');
-      const addAdminButton = document.getElementById('add-admin-button');
-      const addResourceButton = document.getElementById('add-resource-button');
-      const generateIdCardButton = document.getElementById('generate-id-card-button');
-      const generateCertificateButton = document.getElementById('generate-certificate-button');
-      const logoutButton = document.getElementById('logout-button');
-      const modal = document.getElementById('modal');
-      const modalTitle = document.getElementById('modal-title');
-      const modalForm = document.getElementById('modal-form');
-      const closeModalButton = document.getElementById('close-modal-button');
-
-      let currentAction = '';
-      let currentEntityType = '';
-      let currentEntityId = null;
-      const API_BASE_URL = 'http://localhost:3000';
-
-      // API Functions
-      const fetchData = async (url, options = {}) => {
-        try {
-          const response = await fetch(`${API_BASE_URL}${url}`, {
-            ...options,
-            credentials: 'include'
-          });
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const data = await response.json();
-          if (!data.success) throw new Error(data.error || 'API call failed');
-          return data;
-        } catch (error) {
-          console.error('Fetch error:', error);
-          return { success: false, error: error.message };
-        }
-      };
-
-      const postData = async (url, data) => {
-        return fetchData(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-      };
-
-      const postFormData = async (url, formData) => {
-        return fetchData(url, {
-          method: 'POST',
-          body: formData
-        });
-      };
-
-      const putData = async (url, data) => {
-        const headers = data instanceof FormData ? {} : { 'Content-Type': 'application/json' };
-        return fetchData(url, {
-          method: 'PUT',
-          headers,
-          body: data instanceof FormData ? data : JSON.stringify(data)
-        });
-      };
-
-      const deleteData = async (url) => {
-        try {
-          const response = await fetch(`${API_BASE_URL}${url}`, {
-            method: 'DELETE',
-            credentials: 'include'
-          });
-          if (!response.ok) {
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-              const errorData = await response.json();
-              return { success: false, error: errorData.error || `Error ${response.status}` };
-            } else {
-              return { success: false, error: "Session may have expired. Please log in again." };
-            }
-          }
-          const data = await response.json();
-          return data;
-        } catch (error) {
-          console.error("Delete error:", error);
-          return { success: false, error: error.message || "Request failed." };
-        }
-      };
-
-      // UI Rendering Functions
-      const formatCurrency = (amount) => {
-        return `₦${parseFloat(amount || 0).toFixed(2)}`;
-      };
-
-      const renderStaff = (staff) => {
-        staffTable.innerHTML = '';
-        staff.forEach(person => {
-          const row = document.createElement('tr');
-          row.className = 'bg-white border-b hover:bg-gray-50';
-          row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${person.staff_id}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${person.first_name} ${person.last_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.email}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.positions || 'N/A'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.courses || 'N/A'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-              <button class="delete-button text-red-600 hover:text-red-900" data-id="${person.id}" data-type="staff">Delete</button>
-            </td>
-          `;
-          staffTable.appendChild(row);
-        });
-      };
-
-      const renderStudents = (students) => {
-        studentsTable.innerHTML = '';
-        students.forEach(student => {
-          const row = document.createElement('tr');
-          row.className = 'bg-white border-b hover:bg-gray-50';
-          row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.admission_number || 'N/A'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.first_name} ${student.last_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.email}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.course_name || 'N/A'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-              <button class="edit-button text-indigo-600 hover:text-indigo-900" data-id="${student.id}" data-type="student">Edit</button>
-              <button class="delete-button text-red-600 hover:text-red-900" data-id="${student.id}" data-type="student">Delete</button>
-            </td>
-          `;
-          studentsTable.appendChild(row);
-        });
-      };
-
-      const renderAdmins = (admins) => {
-        adminsTable.innerHTML = '';
-        admins.forEach(admin => {
-          const row = document.createElement('tr');
-          row.className = 'bg-white border-b hover:bg-gray-50';
-          row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${admin.username}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${admin.role}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              ${admin.role !== 'Admin' ? `<button class="delete-button text-red-600 hover:text-red-900" data-id="${admin.id}" data-type="admin">Delete</button>` : ''}
-            </td>
-          `;
-          adminsTable.appendChild(row);
-        });
-      };
-
-      const renderResources = (resources) => {
-        resourcesTable.innerHTML = '';
-        resources.forEach(resource => {
-          const row = document.createElement('tr');
-          row.className = 'bg-white border-b hover:bg-gray-50';
-          row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${resource.title}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${resource.course_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <a href="${API_BASE_URL}${resource.file_path}" class="text-indigo-600 hover:text-indigo-900" target="_blank">View</a>
-              <button class="download-button text-green-600 hover:text-green-900 ml-2" data-id="${resource.id}" data-type="resource">Download</button>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-              <button class="edit-button text-indigo-600 hover:text-indigo-900" data-id="${resource.id}" data-type="resource">Edit</button>
-              <button class="delete-button text-red-600 hover:text-red-900" data-id="${resource.id}" data-type="resource">Delete</button>
-            </td>
-          `;
-          resourcesTable.appendChild(row);
-        });
-      };
-
-      const renderPayments = (payments) => {
-        paymentsTable.innerHTML = '';
-        payments.forEach(payment => {
-          const row = document.createElement('tr');
-          row.className = 'bg-white border-b hover:bg-gray-50';
-          row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${payment.first_name} ${payment.last_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${payment.payment_type}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(payment.amount)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <span class="${payment.status === 'Completed' ? 'text-green-600' : 'text-yellow-500'} font-semibold">${payment.status}</span>
-            </td>
-          `;
-          paymentsTable.appendChild(row);
-        });
-      };
-
-      const renderDashboardOverview = async () => {
-        const data = await fetchData('/api/admin/dashboard-overview');
-        if (data.success) {
-          staffCountEl.textContent = data.data.staffCount.count || 0;
-          studentCountEl.textContent = data.data.studentCount.count || 0;
-          courseCountEl.textContent = data.data.courseCount.count || 0;
-          totalPaidEl.textContent = formatCurrency(data.data.paymentSummary.total_paid);
-        } else {
-          console.error('Failed to fetch dashboard data:', data.error);
-          alert('Failed to load dashboard data. Please try again.');
-        }
-
-        const paymentsData = await fetchData('/api/admin/dashboard/payments');
-        if (paymentsData.success) {
-          renderPayments(paymentsData.payments);
-        }
-      };
-
-      const refreshData = async () => {
-        await fetchDataAndRender('/api/admin/staff', renderStaff);
-        await fetchDataAndRender('/api/admin/students', renderStudents);
-        await fetchDataAndRender('/api/admin/resources', renderResources);
-        const adminsData = await fetchData('/api/admin/users');
-        if (adminsData.success) {
-          renderAdmins(adminsData.users);
-        }
-      };
-
-      const fetchDataAndRender = async (url, renderFunc) => {
-        const data = await fetchData(url);
-        if (data.success) {
-          renderFunc(data.staff || data.students || data.resources || data.users);
-        }
-      };
-
-      // Modal Functionality
-      const showModal = (title, formHtml, onSubmit, closable = true) => {
-        modalTitle.textContent = title;
-        modalForm.innerHTML = formHtml;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        closeModalButton.style.display = closable ? 'inline-block' : 'none';
-        modalForm.onsubmit = async (e) => {
-          e.preventDefault();
-          await onSubmit(e);
-          modal.classList.add('hidden');
-          modal.classList.remove('flex');
-          if (currentAction !== 'change-credentials') await refreshData();
-        };
-      };
-
-      closeModalButton.addEventListener('click', () => {
-        if (currentAction !== 'change-credentials') {
-          modal.classList.add('hidden');
-          modal.classList.remove('flex');
-        }
-      });
-
-      logoutButton.addEventListener('click', async () => {
-        const result = await postData('/api/admin/logout');
-        if (result.success) {
-          window.location.href = '/admin/login';
-        } else {
-          alert('Failed to log out.');
-        }
-      });
-
-      // Tab Functionality
-      document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', async () => {
-          document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-          button.classList.add('active');
-          const tabName = button.getAttribute('data-tab');
-          document.getElementById(`${tabName}-tab`).classList.add('active');
-
-          if (tabName === 'overview') {
-            await renderDashboardOverview();
-          } else if (tabName === 'resources') {
-            await fetchDataAndRender('/api/admin/resources', renderResources);
-          }
-        });
-      });
-
-      // Staff Management
-      addStaffButton.addEventListener('click', async () => {
-        const positionsData = await fetchData('/api/admin/positions');
-        const coursesData = await fetchData('/api/admin/courses');
-        const positionsHtml = positionsData.success && positionsData.positions.length > 0
-          ? positionsData.positions.map(pos => `<option value="${pos.id}">${pos.name}</option>`).join('')
-          : '<option value="" disabled>No positions available</option>';
-        const coursesHtml = coursesData.success && coursesData.courses.length > 0
-          ? coursesData.courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('')
-          : '<option value="" disabled>No courses available</option>';
-        const formHtml = `
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Staff ID</label>
-            <input type="text" name="staff_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">First Name</label>
-            <input type="text" name="first_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Last Name</label>
-            <input type="text" name="last_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Email</label>
-            <input type="email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Phone</label>
-            <input type="text" name="phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Positions</label>
-            <select name="positions[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              ${positionsHtml}
-            </select>
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Courses</label>
-            <select name="courses[]" multiple class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              ${coursesHtml}
-            </select>
-          </div>
-        `;
-        currentAction = 'add-staff';
-        showModal('Add New Staff Member', formHtml, async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData);
-          data.positions = formData.getAll('positions[]');
-          data.courses = formData.getAll('courses[]');
-          const result = await postData('/api/admin/staff', data);
-          if (result.success) {
-            alert('Staff member added successfully.');
-          } else {
-            alert(result.error || 'Failed to add staff.');
-          }
-        });
-      });
-
-      // Student Management
-      addStudentButton.addEventListener('click', async () => {
-        const coursesData = await fetchData('/api/admin/courses');
-        const coursesHtml = coursesData.success && coursesData.courses.length > 0
-          ? coursesData.courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('')
-          : '<option value="" disabled>No courses available</option>';
-        const formHtml = `
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Admission No</label>
-            <input type="text" name="admission_number" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">First Name</label>
-            <input type="text" name="first_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Last Name</label>
-            <input type="text" name="last_name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Email</label>
-            <input type="email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Course</label>
-            <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              ${coursesHtml}
-            </select>
-          </div>
-          <div class="mb-4">
-            <label for="profile_picture" class="block text-gray-700 font-medium mb-2">Profile Picture</label>
-            <input type="file" id="profile_picture" name="profile_picture" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          </div>
-        `;
-        currentAction = 'add-student';
-        showModal('Add New Student', formHtml, async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const result = await postFormData('/api/admin/students', formData);
-          if (result.success) {
-            alert('Student added successfully.');
-          } else {
-            alert(result.error || 'Failed to add student.');
-          }
-        });
-      });
-
-      // Admin Management
-      addAdminButton.addEventListener('click', async () => {
-        const formHtml = `
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Username</label>
-            <input type="text" name="username" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Password</label>
-            <input type="password" name="password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Role</label>
-            <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option value="Admin">Admin</option>
-              <option value="Deputy Admin">Deputy Admin</option>
-              <option value="Assistant Admin">Assistant Admin</option>
-            </select>
-          </div>
-        `;
-        currentAction = 'add-admin';
-        showModal('Add New Admin', formHtml, async (e) => {
-          e.preventDefault();
-          const formData = Object.fromEntries(new FormData(e.target).entries());
-          const result = await postData('/api/admin/users', formData);
-          if (result.success) {
-            alert('Admin created successfully.');
-          } else {
-            alert(result.error || 'Failed to create admin.');
-          }
-        });
-      });
-
-      // Resource Management
-      addResourceButton.addEventListener('click', async () => {
-        const coursesData = await fetchData('/api/admin/courses');
-        const coursesHtml = coursesData.success && coursesData.courses.length > 0
-          ? coursesData.courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('')
-          : '<option value="" disabled>No courses available</option>';
-        const formHtml = `
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Title</label>
-            <input type="text" name="title" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-          </div>
-          <div class="mb-4">
-            <label class="block text-gray-700 font-medium mb-2">Course</label>
-            <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              ${coursesHtml}
-            </select>
-          </div>
-          <div class="mb-4">
-            <label for="file" class="block text-gray-700 font-medium mb-2">File</label>
-            <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.jpg,.jpeg,.png" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          </div>
-        `;
-        currentAction = 'add-resource';
-        showModal('Add New Resource', formHtml, async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const result = await postFormData('/api/admin/resources', formData);
-          if (result.success) {
-            alert('Resource added successfully.');
-          } else {
-            alert(result.error || 'Failed to add resource.');
-          }
-        });
-      });
-
-      // Delete and Edit Handlers
-      document.addEventListener('click', (e) => {
-        if (e.target.matches('.delete-button[data-type="staff"]')) {
-          const id = e.target.dataset.id;
-          if (confirm('Are you sure you want to delete this staff?')) {
-            deleteData(`/api/admin/staff/${id}`).then(result => {
-              if (result.success) {
-                alert('Staff deleted successfully.');
-                refreshData();
-              } else {
-                alert(result.error || 'Failed to delete staff.');
-                if (result.error.includes('Session may have expired')) {
-                  logoutButton.click();
-                }
-              }
-            });
-          }
-        }
-
-        if (e.target.matches('.delete-button[data-type="student"]')) {
-          const id = e.target.dataset.id;
-          if (confirm('Are you sure you want to delete this student?')) {
-            deleteData(`/api/admin/students/${id}`).then(result => {
-              if (result.success) {
-                alert('Student deleted successfully.');
-                refreshData();
-              } else {
-                alert(result.error || 'Failed to delete student.');
-                if (result.error.includes('Session may have expired')) {
-                  logoutButton.click();
-                }
-              }
-            });
-          }
-        }
-
-        if (e.target.matches('.delete-button[data-type="admin"]')) {
-          const id = e.target.dataset.id;
-          if (confirm('Are you sure you want to delete this admin?')) {
-            deleteData(`/api/admin/users/${id}`).then(result => {
-              if (result.success) {
-                alert('Admin deleted successfully.');
-                refreshData();
-              } else {
-                alert(result.error || 'Failed to delete admin.');
-                if (result.error.includes('Session may have expired')) {
-                  logoutButton.click();
-                }
-              }
-            });
-          }
-        }
-
-        if (e.target.matches('.delete-button[data-type="resource"]')) {
-          const id = e.target.dataset.id;
-          if (confirm('Are you sure you want to delete this resource?')) {
-            deleteData(`/api/admin/resources/${id}`).then(result => {
-              if (result.success) {
-                alert('Resource deleted successfully.');
-                refreshData();
-              } else {
-                alert(result.error || 'Failed to delete resource.');
-                if (result.error.includes('Session may have expired')) {
-                  logoutButton.click();
-                }
-              }
-            });
-          }
-        }
-
-        if (e.target.matches('.download-button[data-type="resource"]')) {
-          const id = e.target.dataset.id;
-          fetch(`${API_BASE_URL}/api/admin/resources/download/${id}`, {
-            method: 'GET',
-            credentials: 'include'
-          }).then(response => {
-            if (response.ok) {
-              return response.blob().then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `resource_${id}${response.headers.get('content-type').includes('pdf') ? '.pdf' : ''}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                alert('Resource downloaded successfully.');
-              });
-            } else {
-              return response.json().then(data => {
-                throw new Error(data.error || 'Failed to download resource.');
-              });
-            }
-          }).catch(error => {
-            console.error('Download error:', error);
-            alert(error.message || 'Failed to download resource.');
-            if (error.message.includes('Session may have expired')) {
-              logoutButton.click();
-            }
-          });
-        }
-
-        if (e.target.matches('.edit-button[data-type="student"]')) {
-          const id = e.target.dataset.id;
-          currentAction = 'edit-student';
-          currentEntityType = 'student';
-          currentEntityId = id;
-
-          fetchData(`/api/admin/students/${id}`).then(data => {
-            if (!data.success) {
-              alert(data.error || 'Failed to fetch data for editing student.');
-              return;
-            }
-            const student = data.student;
-            fetchData('/api/admin/courses').then(coursesData => {
-              const coursesHtml = coursesData.success
-                ? coursesData.courses.map(course => `<option value="${course.id}" ${student.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
-                : '<option value="" disabled>No courses available</option>';
-              const profilePicHtml = student.profile_picture ? `
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Current Picture</label>
-                  <img src="${API_BASE_URL}${student.profile_picture}" alt="Profile Picture" class="w-24 h-24 object-cover rounded-full">
-                </div>` : '';
-              const formHtml = `
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Admission No</label>
-                  <input type="text" name="admission_number" value="${student.admission_number || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">First Name</label>
-                  <input type="text" name="first_name" value="${student.first_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Last Name</label>
-                  <input type="text" name="last_name" value="${student.last_name || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Email</label>
-                  <input type="email" name="email" value="${student.email || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Course</label>
-                  <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                    ${coursesHtml}
-                  </select>
-                </div>
-                ${profilePicHtml}
-                <div class="mb-4">
-                  <label for="profile_picture" class="block text-gray-700 font-medium mb-2">New Profile Picture</label>
-                  <input type="file" id="profile_picture" name="profile_picture" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-              `;
-              showModal('Edit Student', formHtml, async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                if (!formData.get('profile_picture') || formData.get('profile_picture').name === '') {
-                  formData.delete('profile_picture');
-                }
-                const result = await putData(`/api/admin/students/${currentEntityId}`, formData);
-                if (result.success) {
-                  alert('Student updated successfully.');
-                } else {
-                  alert(result.error || 'Failed to update student.');
-                }
-              });
-            });
-          });
-        }
-
-        if (e.target.matches('.edit-button[data-type="admin"]')) {
-          const id = e.target.dataset.id;
-          currentAction = 'edit-admin';
-          currentEntityType = 'admin';
-          currentEntityId = id;
-
-          fetchData(`/api/admin/users/${id}`).then(data => {
-            if (!data.success) {
-              alert(data.error || 'Failed to fetch data for editing admin.');
-              return;
-            }
-            const admin = data.users[0];
-            const formHtml = `
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium mb-2">Username</label>
-                <input type="text" name="username" value="${admin.username || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              </div>
-              <div class="mb-4">
-                <label class="block text-gray-700 font-medium mb-2">Role</label>
-                <select name="role" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                  <option value="Deputy Admin" ${admin.role === 'Deputy Admin' ? 'selected' : ''}>Deputy Admin</option>
-                  <option value="Assistant Admin" ${admin.role === 'Assistant Admin' ? 'selected' : ''}>Assistant Admin</option>
-                </select>
-              </div>
-            `;
-            showModal('Edit Admin', formHtml, async (e) => {
-              e.preventDefault();
-              const formData = Object.fromEntries(new FormData(e.target).entries());
-              const result = await putData(`/api/admin/users/${currentEntityId}`, formData);
-              if (result.success) {
-                alert('Admin updated successfully.');
-              } else {
-                alert(result.error || 'Failed to update admin.');
-              }
-            });
-          });
-        }
-
-        if (e.target.matches('.edit-button[data-type="resource"]')) {
-          const id = e.target.dataset.id;
-          currentAction = 'edit-resource';
-          currentEntityType = 'resource';
-          currentEntityId = id;
-
-          fetchData(`/api/admin/resources/${id}`).then(data => {
-            if (!data.success) {
-              alert(data.error || 'Failed to fetch data for editing resource.');
-              return;
-            }
-            const resource = data.resource;
-            fetchData('/api/admin/courses').then(coursesData => {
-              const coursesHtml = coursesData.success
-                ? coursesData.courses.map(course => `<option value="${course.id}" ${resource.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
-                : '<option value="" disabled>No courses available</option>';
-              const formHtml = `
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Title</label>
-                  <input type="text" name="title" value="${resource.title || ''}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Course</label>
-                  <select name="course_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                    ${coursesHtml}
-                  </select>
-                </div>
-                <div class="mb-4">
-                  <label class="block text-gray-700 font-medium mb-2">Current File</label>
-                  <a href="${API_BASE_URL}${resource.file_path}" target="_blank" class="text-indigo-600 hover:text-indigo-900">${resource.file_path.split('/').pop()}</a>
-                </div>
-                <div class="mb-4">
-                  <label for="file" class="block text-gray-700 font-medium mb-2">New File (optional)</label>
-                  <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.jpg,.jpeg,.png" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-              `;
-              showModal('Edit Resource', formHtml, async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                if (!formData.get('file') || formData.get('file').name === '') {
-                  formData.delete('file');
-                }
-                const result = await putData(`/api/admin/resources/${currentEntityId}`, formData);
-                if (result.success) {
-                  alert('Resource updated successfully.');
-                } else {
-                  alert(result.error || 'Failed to update resource.');
-                }
-              });
-            });
-          });
-        }
-      });
-
-      generateIdCardButton.addEventListener('click', async () => {
-        const entityType = document.getElementById('id-card-entity-type').value;
-        const entityId = document.getElementById('id-card-entity-id').value;
-        if (!entityId) {
-          alert('Please enter an ID.');
-          return;
-        }
-        const response = await fetch(`${API_BASE_URL}/api/admin/id-card/${entityType}/${entityId}`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${entityType}_ID_${entityId}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          alert('ID card generated successfully.');
-        } else {
-          const data = await response.json();
-          alert(data.error || 'Failed to generate ID card.');
-        }
-      });
-
-      generateCertificateButton.addEventListener('click', async () => {
-        const studentId = document.getElementById('certificate-student-id').value;
-        if (!studentId) {
-          alert('Please enter a student ID.');
-          return;
-        }
-        const response = await fetch(`${API_BASE_URL}/api/admin/certificate/${studentId}`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `Certificate_${studentId}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          alert('Certificate generated successfully.');
-        } else {
-          const data = await response.json();
-          alert(data.error || 'Failed to generate certificate.');
-        }
-      });
-
-      // Initial check and data load
-      const checkAuth = async () => {
-        const authCheck = await fetchData('/api/admin/auth-check');
-        if (authCheck.success) {
-          dashboardContainer.classList.remove('hidden');
-          if (authCheck.role === 'Admin') {
-            adminManagementTab.classList.remove('hidden');
-          }
-          await renderDashboardOverview();
-          await refreshData();
-        } else {
-          window.location.href = '/admin/login';
-        }
-      };
-
-      await checkAuth();
-    });
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/admin-dashboard.js"></script>
 </body>
 </html>
