@@ -130,9 +130,11 @@ const API_BASE_URL =
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.email}</td>
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.positions || 'N/A'}</td>
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${person.courses || 'N/A'}</td>
-      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-        <button class="btn btn-danger btn-sm delete-button" data-id="${person.id}" data-type="staff">Delete</button>
-      </td>
+     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+  <button class="btn btn-sm btn-outline-danger delete-button" data-id="${person.id}" data-type="staff">
+    <i class="bi bi-trash"></i>
+  </button>
+</td>
       `;
       staffTable.querySelector('tbody').appendChild(row);
     });
@@ -149,9 +151,14 @@ const API_BASE_URL =
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.email}</td>
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${student.course_name || 'N/A'}</td>
       <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-        <button class="btn btn-info btn-sm edit-button" data-id="${student.id}" data-type="student">Edit</button>
-        <button class="btn btn-danger btn-sm delete-button" data-id="${student.id}" data-type="student">Delete</button>
-      </td>
+  <button class="btn btn-sm btn-outline-primary edit-button" data-id="${student.id}" data-type="student">
+    <i class="bi bi-pencil-square"></i>
+  </button>
+  <button class="btn btn-sm btn-outline-danger delete-button" data-id="${student.id}" data-type="student">
+    <i class="bi bi-trash"></i>
+  </button>
+</td>
+
       `;
       studentsTable.querySelector('tbody').appendChild(row);
     });
@@ -165,12 +172,15 @@ const API_BASE_URL =
       row.innerHTML = `
         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${admin.username}</td>
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${admin.role}</td>
-      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-        ${admin.role !== 'Admin' 
-          ? `<button class="btn btn-danger btn-sm delete-button" data-id="${admin.id}" data-type="admin">Delete</button>` 
-          : ''
-        }
-      </td>
+     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+  ${admin.role !== 'Admin' 
+    ? `<button class="btn btn-sm btn-outline-danger delete-button" data-id="${admin.id}" data-type="admin">
+         <i class="bi bi-trash"></i>
+       </button>` 
+    : ''
+  }
+</td>
+
       `;
       adminsTable.querySelector('tbody').appendChild(row);
     });
@@ -184,14 +194,23 @@ const API_BASE_URL =
       row.innerHTML = `
          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${resource.title}</td>
       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${resource.course_name}</td>
-      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
-        <a href="${API_BASE_URL}${resource.file_path}" class="btn btn-primary btn-sm" target="_blank">View</a>
-        <button class="btn btn-success btn-sm download-button" data-id="${resource.id}" data-type="resource">Download</button>
-      </td>
-      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-        <button class="btn btn-info btn-sm edit-button" data-id="${resource.id}" data-type="resource">Edit</button>
-        <button class="btn btn-danger btn-sm delete-button" data-id="${resource.id}" data-type="resource">Delete</button>
-      </td>
+     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
+  <a href="${API_BASE_URL}${resource.file_path}" class="btn btn-sm btn-outline-secondary" target="_blank">
+    <i class="bi bi-eye"></i>
+  </a>
+  <button class="btn btn-sm btn-outline-success download-button" data-id="${resource.id}" data-type="resource">
+    <i class="bi bi-download"></i>
+  </button>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+  <button class="btn btn-sm btn-outline-primary edit-button" data-id="${resource.id}" data-type="resource">
+    <i class="bi bi-pencil-square"></i>
+  </button>
+  <button class="btn btn-sm btn-outline-danger delete-button" data-id="${resource.id}" data-type="resource">
+    <i class="bi bi-trash"></i>
+  </button>
+</td>
+
       `;
       resourcesTable.querySelector('tbody').appendChild(row);
     });
@@ -484,252 +503,264 @@ addStaffButton.addEventListener('click', async () => {
   });
 
   // Delete and Edit Handlers
-  document.addEventListener('click', (e) => {
-    if (e.target.matches('.delete-button[data-type="staff"]')) {
-      const id = e.target.dataset.id;
-      if (confirm('Are you sure you want to delete this staff?')) {
-        deleteData(`/api/admin/staff/${id}`).then(result => {
-          if (result.success) {
-            alert('Staff deleted successfully.');
-            refreshData();
-          } else {
-            alert(result.error || 'Failed to delete staff.');
-            if (result.error.includes('Session may have expired')) {
-              logoutButton.click();
-            }
-          }
-        });
-      }
-    }
+document.addEventListener('click', async (e) => {
+  const deleteBtn = e.target.closest('.delete-button');
+  const editBtn = e.target.closest('.edit-button');
+  const downloadBtn = e.target.closest('.download-button');
 
-    if (e.target.matches('.delete-button[data-type="student"]')) {
-      const id = e.target.dataset.id;
-      if (confirm('Are you sure you want to delete this student?')) {
-        deleteData(`/api/admin/students/${id}`).then(result => {
-          if (result.success) {
-            alert('Student deleted successfully.');
-            refreshData();
-          } else {
-            alert(result.error || 'Failed to delete student.');
-            if (result.error.includes('Session may have expired')) {
-              logoutButton.click();
-            }
-          }
-        });
-      }
-    }
-
-    if (e.target.matches('.delete-button[data-type="admin"]')) {
-      const id = e.target.dataset.id;
-      if (confirm('Are you sure you want to delete this admin?')) {
-        deleteData(`/api/admin/users/${id}`).then(result => {
-          if (result.success) {
-            alert('Admin deleted successfully.');
-            refreshData();
-          } else {
-            alert(result.error || 'Failed to delete admin.');
-            if (result.error.includes('Session may have expired')) {
-              logoutButton.click();
-            }
-          }
-        });
-      }
-    }
-
-    if (e.target.matches('.delete-button[data-type="resource"]')) {
-      const id = e.target.dataset.id;
-      if (confirm('Are you sure you want to delete this resource?')) {
-        deleteData(`/api/admin/resources/${id}`).then(result => {
-          if (result.success) {
-            alert('Resource deleted successfully.');
-            refreshData();
-          } else {
-            alert(result.error || 'Failed to delete resource.');
-            if (result.error.includes('Session may have expired')) {
-              logoutButton.click();
-            }
-          }
-        });
-      }
-    }
-
-    if (e.target.matches('.download-button[data-type="resource"]')) {
-      const id = e.target.dataset.id;
-      fetch(`${API_BASE_URL}/api/admin/resources/download/${id}`, {
-        method: 'GET',
-        credentials: 'include'
-      }).then(response => {
-        if (response.ok) {
-          return response.blob().then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `resource_${id}${response.headers.get('content-type').includes('pdf') ? '.pdf' : ''}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            alert('Resource downloaded successfully.');
-          });
-        } else {
-          return response.json().then(data => {
-            throw new Error(data.error || 'Failed to download resource.');
-          });
-        }
-      }).catch(error => {
-        console.error('Download error:', error);
-        alert(error.message || 'Failed to download resource.');
-        if (error.message.includes('Session may have expired')) {
+  // Delete Staff
+  if (deleteBtn && deleteBtn.dataset.type === 'staff') {
+    const id = deleteBtn.dataset.id;
+    if (confirm('Are you sure you want to delete this staff?')) {
+      const result = await deleteData(`/api/admin/staff/${id}`);
+      if (result.success) {
+        alert('Staff deleted successfully.');
+        await refreshData();
+      } else {
+        alert(result.error || 'Failed to delete staff.');
+        if (result.error.includes('Session may have expired')) {
           logoutButton.click();
         }
-      });
+      }
     }
+  }
 
-    if (e.target.matches('.edit-button[data-type="student"]')) {
-      const id = e.target.dataset.id;
-      currentAction = 'edit-student';
-      currentEntityType = 'student';
-      currentEntityId = id;
-
-      fetchData(`/api/admin/students/${id}`).then(data => {
-        if (!data.success) {
-          alert(data.error || 'Failed to fetch data for editing student.');
-          return;
+  // Delete Student
+  if (deleteBtn && deleteBtn.dataset.type === 'student') {
+    const id = deleteBtn.dataset.id;
+    if (confirm('Are you sure you want to delete this student?')) {
+      const result = await deleteData(`/api/admin/students/${id}`);
+      if (result.success) {
+        alert('Student deleted successfully.');
+        await refreshData();
+      } else {
+        alert(result.error || 'Failed to delete student.');
+        if (result.error.includes('Session may have expired')) {
+          logoutButton.click();
         }
-        const student = data.student;
-        fetchData('/api/admin/courses').then(coursesData => {
-          const coursesHtml = coursesData.success
-            ? coursesData.courses.map(course => `<option value="${course.id}" ${student.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
-            : '<option value="" disabled>No courses available</option>';
-          const formHtml = `
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Admission No</label>
-              <input type="text" name="admission_number" value="${student.admission_number || ''}" required class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">First Name</label>
-              <input type="text" name="first_name" value="${student.first_name || ''}" required class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Last Name</label>
-              <input type="text" name="last_name" value="${student.last_name || ''}" required class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Email</label>
-              <input type="email" name="email" value="${student.email || ''}" required class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Course</label>
-              <select name="course_id" required class="form-control">
-                ${coursesHtml}
-              </select>
-            </div>
-          `;
-          showModal('Edit Student', formHtml, async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const result = await putData(`/api/admin/students/${currentEntityId}`, formData);
-            if (result.success) {
-              alert('Student updated successfully.');
-            } else {
-              alert(result.error || 'Failed to update student.');
-            }
-          });
-        });
-      });
+      }
     }
+  }
 
-    if (e.target.matches('.edit-button[data-type="admin"]')) {
-      const id = e.target.dataset.id;
-      currentAction = 'edit-admin';
-      currentEntityType = 'admin';
-      currentEntityId = id;
-
-      fetchData(`/api/admin/users/${id}`).then(data => {
-        if (!data.success) {
-          alert(data.error || 'Failed to fetch data for editing admin.');
-          return;
+  // Delete Admin
+  if (deleteBtn && deleteBtn.dataset.type === 'admin') {
+    const id = deleteBtn.dataset.id;
+    if (confirm('Are you sure you want to delete this admin?')) {
+      const result = await deleteData(`/api/admin/users/${id}`);
+      if (result.success) {
+        alert('Admin deleted successfully.');
+        await refreshData();
+      } else {
+        alert(result.error || 'Failed to delete admin.');
+        if (result.error.includes('Session may have expired')) {
+          logoutButton.click();
         }
-        const admin = data.users[0];
-        const formHtml = `
-          <div class="mb-3">
-            <label class="form-label text-gray-700 font-medium">Username</label>
-            <input type="text" name="username" value="${admin.username || ''}" required class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label text-gray-700 font-medium">Role</label>
-            <select name="role" required class="form-control">
-              <option value="Deputy Admin" ${admin.role === 'Deputy Admin' ? 'selected' : ''}>Deputy Admin</option>
-              <option value="Assistant Admin" ${admin.role === 'Assistant Admin' ? 'selected' : ''}>Assistant Admin</option>
-            </select>
-          </div>
-        `;
-        showModal('Edit Admin', formHtml, async (e) => {
-          e.preventDefault();
-          const formData = Object.fromEntries(new FormData(e.target).entries());
-          const result = await putData(`/api/admin/users/${currentEntityId}`, formData);
-          if (result.success) {
-            alert('Admin updated successfully.');
-          } else {
-            alert(result.error || 'Failed to update admin.');
-          }
-        });
-      });
+      }
     }
+  }
 
-    if (e.target.matches('.edit-button[data-type="resource"]')) {
-      const id = e.target.dataset.id;
-      currentAction = 'edit-resource';
-      currentEntityType = 'resource';
-      currentEntityId = id;
-
-      fetchData(`/api/admin/resources/${id}`).then(data => {
-        if (!data.success) {
-          alert(data.error || 'Failed to fetch data for editing resource.');
-          return;
+  // Delete Resource
+  if (deleteBtn && deleteBtn.dataset.type === 'resource') {
+    const id = deleteBtn.dataset.id;
+    if (confirm('Are you sure you want to delete this resource?')) {
+      const result = await deleteData(`/api/admin/resources/${id}`);
+      if (result.success) {
+        alert('Resource deleted successfully.');
+        await refreshData();
+      } else {
+        alert(result.error || 'Failed to delete resource.');
+        if (result.error.includes('Session may have expired')) {
+          logoutButton.click();
         }
-        const resource = data.resource;
-        fetchData('/api/admin/courses').then(coursesData => {
-          const coursesHtml = coursesData.success
-            ? coursesData.courses.map(course => `<option value="${course.id}" ${resource.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
-            : '<option value="" disabled>No courses available</option>';
-          const formHtml = `
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Title</label>
-              <input type="text" name="title" value="${resource.title || ''}" required class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Course</label>
-              <select name="course_id" required class="form-control">
-                ${coursesHtml}
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label text-gray-700 font-medium">Current File</label>
-              <a href="${API_BASE_URL}${resource.file_path}" target="_blank" class="text-indigo-600 hover:text-indigo-900">${resource.file_path.split('/').pop()}</a>
-            </div>
-            <div class="mb-3">
-              <label for="file" class="form-label text-gray-700 font-medium">New File (optional)</label>
-              <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.jpg,.jpeg,.png" class="form-control">
-            </div>
-          `;
-          showModal('Edit Resource', formHtml, async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            if (!formData.get('file') || formData.get('file').name === '') {
-              formData.delete('file');
-            }
-            const result = await putData(`/api/admin/resources/${currentEntityId}`, formData);
-            if (result.success) {
-              alert('Resource updated successfully.');
-            } else {
-              alert(result.error || 'Failed to update resource.');
-            }
-          });
-        });
+      }
+    }
+  }
+
+  // Download Resource
+  if (downloadBtn && downloadBtn.dataset.type === 'resource') {
+    const id = downloadBtn.dataset.id;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/resources/download/${id}`, {
+        method: 'GET',
+        credentials: 'include'
       });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `resource_${id}${response.headers.get('content-type').includes('pdf') ? '.pdf' : ''}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        alert('Resource downloaded successfully.');
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to download resource.');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert(error.message || 'Failed to download resource.');
+      if (error.message.includes('Session may have expired')) {
+        logoutButton.click();
+      }
+    }
+  }
+// Edit Student
+if (editBtn && editBtn.dataset.type === 'student') {
+  const id = editBtn.dataset.id;
+  currentAction = 'edit-student';
+  currentEntityType = 'student';
+  currentEntityId = id;
+
+  const data = await fetchData(`/api/admin/students/${id}`);
+  if (!data.success) {
+    alert(data.error || 'Failed to fetch data for editing student.');
+    return;
+  }
+  const student = data.student;
+  const coursesData = await fetchData('/api/admin/courses');
+  const coursesHtml = coursesData.success
+    ? coursesData.courses.map(course => `<option value="${course.id}" ${student.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
+    : '<option value="" disabled>No courses available</option>';
+
+  const formHtml = `
+    <div class="mb-3 text-center">
+      <label class="form-label text-gray-700 font-medium d-block">Profile Picture</label>
+      <img src="${student.profile_picture ? API_BASE_URL + student.profile_picture : '/default-avatar.png'}" 
+           alt="Profile Picture" 
+           class="rounded-circle mb-2" 
+           style="width: 100px; height: 100px; object-fit: cover;">
+      <input type="file" name="profile_picture" accept="image/*" class="form-control mt-2">
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-gray-700 font-medium">Admission No</label>
+      <input type="text" name="admission_number" value="${student.admission_number || ''}" required class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-gray-700 font-medium">First Name</label>
+      <input type="text" name="first_name" value="${student.first_name || ''}" required class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-gray-700 font-medium">Last Name</label>
+      <input type="text" name="last_name" value="${student.last_name || ''}" required class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-gray-700 font-medium">Email</label>
+      <input type="email" name="email" value="${student.email || ''}" required class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label text-gray-700 font-medium">Course</label>
+      <select name="course_id" required class="form-control">
+        ${coursesHtml}
+      </select>
+    </div>
+  `;
+
+  showModal('Edit Student', formHtml, async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const result = await putData(`/api/admin/students/${currentEntityId}`, formData);
+    if (result.success) {
+      alert('Student updated successfully.');
+    } else {
+      alert(result.error || 'Failed to update student.');
     }
   });
+}
+
+
+  // Edit Admin
+  if (editBtn && editBtn.dataset.type === 'admin') {
+    const id = editBtn.dataset.id;
+    currentAction = 'edit-admin';
+    currentEntityType = 'admin';
+    currentEntityId = id;
+
+    const data = await fetchData(`/api/admin/users/${id}`);
+    if (!data.success) {
+      alert(data.error || 'Failed to fetch data for editing admin.');
+      return;
+    }
+    const admin = data.users[0];
+    const formHtml = `
+      <div class="mb-3">
+        <label class="form-label text-gray-700 font-medium">Username</label>
+        <input type="text" name="username" value="${admin.username || ''}" required class="form-control">
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-gray-700 font-medium">Role</label>
+        <select name="role" required class="form-control">
+          <option value="Deputy Admin" ${admin.role === 'Deputy Admin' ? 'selected' : ''}>Deputy Admin</option>
+          <option value="Assistant Admin" ${admin.role === 'Assistant Admin' ? 'selected' : ''}>Assistant Admin</option>
+        </select>
+      </div>
+    `;
+    showModal('Edit Admin', formHtml, async (e) => {
+      e.preventDefault();
+      const formData = Object.fromEntries(new FormData(e.target).entries());
+      const result = await putData(`/api/admin/users/${currentEntityId}`, formData);
+      if (result.success) {
+        alert('Admin updated successfully.');
+      } else {
+        alert(result.error || 'Failed to update admin.');
+      }
+    });
+  }
+
+  // Edit Resource
+  if (editBtn && editBtn.dataset.type === 'resource') {
+    const id = editBtn.dataset.id;
+    currentAction = 'edit-resource';
+    currentEntityType = 'resource';
+    currentEntityId = id;
+
+    const data = await fetchData(`/api/admin/resources/${id}`);
+    if (!data.success) {
+      alert(data.error || 'Failed to fetch data for editing resource.');
+      return;
+    }
+    const resource = data.resource;
+    const coursesData = await fetchData('/api/admin/courses');
+    const coursesHtml = coursesData.success
+      ? coursesData.courses.map(course => `<option value="${course.id}" ${resource.course_id === course.id ? 'selected' : ''}>${course.name}</option>`).join('')
+      : '<option value="" disabled>No courses available</option>';
+    const formHtml = `
+      <div class="mb-3">
+        <label class="form-label text-gray-700 font-medium">Title</label>
+        <input type="text" name="title" value="${resource.title || ''}" required class="form-control">
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-gray-700 font-medium">Course</label>
+        <select name="course_id" required class="form-control">
+          ${coursesHtml}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label text-gray-700 font-medium">Current File</label>
+        <a href="${API_BASE_URL}${resource.file_path}" target="_blank" class="text-indigo-600 hover:text-indigo-900">${resource.file_path.split('/').pop()}</a>
+      </div>
+      <div class="mb-3">
+        <label for="file" class="form-label text-gray-700 font-medium">New File (optional)</label>
+        <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.zip,.rar,.jpg,.jpeg,.png" class="form-control">
+      </div>
+    `;
+    showModal('Edit Resource', formHtml, async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      if (!formData.get('file') || formData.get('file').name === '') {
+        formData.delete('file');
+      }
+      const result = await putData(`/api/admin/resources/${currentEntityId}`, formData);
+      if (result.success) {
+        alert('Resource updated successfully.');
+      } else {
+        alert(result.error || 'Failed to update resource.');
+      }
+    });
+  }
+});
 
   generateIdCardButton.addEventListener('click', async () => {
     const entityType = document.getElementById('id-card-entity-type').value;
