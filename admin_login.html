@@ -1,14 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login - UltraTech Global Solution LTD</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="../css/styles.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin-Login - UltraTech Global Solution LTD</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <!-- Custom CSS -->
+   <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/global.css"/>
 </head>
 <body class="bg-light">
+   <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container">
+      <a class="navbar-brand fw-bold brand-text" href="/">
+        <i class="fas fa-graduation-cap me-2"></i> UltraTech Global Solution
+      </a>
+      <div class="ms-auto">
+        <button class="btn btn-primary text-white" onclick="window.location.href='/'">
+          Back to Home
+        </button>
+      </div>
+    </div>
+  </nav>
+
   <div class="container-fluid">
     <div class="row min-vh-100">
       <!-- Left Side - Branding -->
@@ -103,68 +121,6 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const loginForm = document.getElementById('login-form');
-      const errorMessage = document.getElementById('login-error-message');
-      const changeCredentialsForm = document.getElementById('changeCredentialsForm');
-      const changeCredentialsModal = new bootstrap.Modal(document.getElementById('changeCredentialsModal'));
-      const API_BASE_URL = 'http://localhost:3000';
-
-      // Helper to POST JSON
-      const postData = async (url, data) => {
-        try {
-          const response = await fetch(`${API_BASE_URL}${url}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-            credentials: 'include'
-          });
-          return await response.json();
-        } catch (err) {
-          return { success: false, error: err.message };
-        }
-      };
-
-      // Login submit
-      loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-
-        errorMessage.style.display = 'none';
-
-        const result = await postData('/api/admin/login', { username, password });
-
-        if (result.success) {
-          if (result.isFirstLogin) {
-            changeCredentialsModal.show();
-          } else {
-            window.location.href = '/admin/dashboard';
-          }
-        } else {
-          errorMessage.textContent = result.error || 'Login failed. Please try again.';
-          errorMessage.style.display = 'block';
-        }
-      });
-
-      // Change credentials submit
-      changeCredentialsForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const newUsername = document.getElementById('newUsername').value;
-        const newPassword = document.getElementById('newPassword').value;
-
-        const result = await postData('/api/admin/change-credentials', { newUsername, newPassword });
-
-        if (result.success) {
-          alert('Credentials updated successfully. Please log in with your new credentials.');
-          changeCredentialsModal.hide();
-          window.location.reload();
-        } else {
-          alert(result.error || 'Failed to update credentials.');
-        }
-      });
-    });
-  </script>
+  <script src="/admin-login.js"></script>
 </body>
 </html>

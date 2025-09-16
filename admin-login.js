@@ -1,4 +1,4 @@
-  document.addEventListener('DOMContentLoaded', () => {
+ document.addEventListener('DOMContentLoaded', () => {
       const loginForm = document.getElementById('login-form');
       const errorMessage = document.getElementById('login-error-message');
       const changeCredentialsForm = document.getElementById('changeCredentialsForm');
