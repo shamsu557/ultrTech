@@ -1,0 +1,25 @@
+The assignment is created successfully and is reflected in the students’ portal for the associated course. It also appears in the recent activity of both staff and students.
+
+When staff click on Submissions, they should see a table listing the students who submitted, including their admission numbers and the files they uploaded (which can be viewed). There should also be a column showing the total marks allocated for the assignment (as defined during assignment creation) and a field where the staff can enter the score each student obtained. The system should prevent assigning marks above the maximum allocated score.
+
+Since multiple assignments may be given, there should be a field that calculates the average score across all assignments. On the student dashboard, each assignment score will be displayed, and the average assignment score will be shown on the sidebar. Each student is associated with only one course, so their exam results (when uploaded) should also be shown, along with the overall score.
+
+On the staff dashboard, in addition to assignments, there should be an Exams button. Staff should be able to create exams by adding objective-type questions and specifying the correct options. Once completed, the exam is saved for that course. On the scheduled exam day, the admin activates the exam, after which students can access it. Exams should be automatically scored as soon as a student finishes, and results should be visible on the student dashboard. The overall result should be calculated as the average of assignments and exams.
+
+If a student’s overall score is greater than or equal to 50%, the course status should display as Completed. When a student completes a course:
+
+Their record should be moved from the students table to the completed_students table, along with the year and month of completion.
+
+When they log in, they should be notified that their course status is Completed.
+
+On the admin portal, the admin should be able to enter a student’s number in the Generate Certificate section and download the certificate for that student.
+
+If the student later wishes to apply for another course, during signup the system should check:
+
+If the email already exists and the student is applying for the same course, prevent registration.
+
+If the student is applying for a different course, check if the status of the previous course is Completed. If yes, allow the new course registration.
+
+The student ID card will be generated in the format of KIRS ID (I will provide the code for the sample format).
+
+Note: Staff may be associated with more than one course.
